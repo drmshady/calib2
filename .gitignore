@@ -1,0 +1,65 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+.hypothesis/
+
+# Image files (raw captures, processed images)
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+*.bmp
+*.nef
+*.cr2
+*.arw
+*.dng
+*.raw
+*.orf
+*.rw2
+
+# 3D model files (STL outputs)
+*.stl
+*.obj
+*.ply
+
+# Logs and outputs
+*.log
+*.out
+
+# Run outputs and exports
+runs/*/images/
+runs/*/models/*.stl
+exports/*.stl
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
