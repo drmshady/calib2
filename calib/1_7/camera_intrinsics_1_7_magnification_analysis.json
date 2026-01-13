@@ -1,0 +1,23 @@
+{
+  "focal_length_pixels": 25419.598073768822,
+  "fx_pixels": 25423.876711734763,
+  "fy_pixels": 25415.31943580288,
+  "image_size": [
+    6000,
+    4000
+  ],
+  "square_size_mm": 10.0,
+  "pixel_size_um": 3.9,
+  "pixel_size_mm": 0.0039,
+  "focal_length_mm": 99.1364324876984,
+  "sensor_width_mm": 23.4,
+  "sensor_height_mm": 15.6,
+  "sensor_diagonal_mm": 28.123299948619117,
+  "stated_magnification": "1:7",
+  "stated_magnification_ratio": 0.14285714285714285,
+  "working_distance_mm": 793.0914599015872,
+  "fov_width_mm": 163.8,
+  "fov_height_mm": 109.2,
+  "pixels_per_mm_at_object": 36.63003663003663,
+  "mm_per_pixel_at_object": 0.0273
+}

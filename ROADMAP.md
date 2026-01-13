@@ -2,7 +2,7 @@
 
 **Version:** v0.1.0  
 **Status:** Under Development  
-**Last updated:** 2026-01-01  
+**Last updated:** 2026-01-13  
 **Primary goal:** Full-arch implant photogrammetry (DSLR capture + Windows processing)  
 **Marker strategy:** AprilTag36h11 (seed) + dots (refine) + BA  
 **Frames:** L (Local) → U (User) → I (IOS/exocad)
@@ -18,7 +18,7 @@
 
 ## Phase 0 — Standards, naming, and "what frame am I in?"
 **Goal:** eliminate ambiguity early; every file and result declares its coordinate system.
-**Status:** ⏳ NOT STARTED (reset 2026-01-13)
+**Status:** ✅ COMPLETE (2026-01-13)
 
 ### Unit Constitution (global, non-negotiable)
 Your coordinate frames are meaningless without consistent units.
@@ -86,26 +86,41 @@ Your coordinate frames are meaningless without consistent units.
 
 ---
 
-## Phase 1 — Camera capture standardization + calibration profiles
-**Goal:** stable optics + reproducible sharpness + predictable dot/tag sampling.
+## Phase 1 — Camera calibration (ChArUco + roll diversity)
+**Goal:** compute intrinsics reliably to handle distortion in DLT + triangulation.  
+**Status:** ✅ COMPLETE (2026-01-13)
 
-### Standard capture preset (primary)
-- Magnification: calculate magnification from captured pghoto
-- Aperture: **f/16** (default)
-- camera d5600
-- lens 50mm
-- Control magnification by pixels, not cm: **10 mm edge ≈ 380–480 px** target range
+### Background
+- Use ChArUco (checkerboard + AprilTags) for robust marker detection
+- **8+ unique roll angles** in ≥20 cal images (avoids degeneracy)
+- Capture 1:6 magnification images with **f/16** (replicates production settings)
 
-### Calibration rule
+### Calibration constraints
+- Fixed focal length (50 mm prime)
+- Fixed f-stop (f/16 in production)
+- Compute intrinsics once per magnification+focus pair (1:6 typical)
+- Store calibration metadata with images: date, lens, magnification, f-stop
 - Recalibrate when magnification/focus distance changes (1:5 vs 1:6 vs 1:7)
 - Changing f-stop alone does **not** require recalibration
 
+### Implementation highlights
+- **Board specification:** 9×6 ChArUco grid, 10mm squares, 7mm AprilTag36h11 markers
+- **Auto-magnification:** Computed from detected corners (median pixel distance / 10mm)
+- **Roll diversity:** PCA-based angle binning (8 bins, 22.5° spacing, 0-180° range)
+- **Quality gates:** Reprojection <0.5px (fail threshold), min 20 images, min 30 corners/image
+- **Integration:** Undistort points BEFORE triangulation in Phase 3
+
 ### Deliverables
-- `calib/camera_intrinsics_1_6.json`
-- `calib/README.md` (capture procedure, roll diversity, verification)
+- ✅ `calib/fixtures/charuco_board_9x6.json` — Board specification
+- ✅ `tools/camera_calibration.py` — Calibration tool (462 lines, CLI)
+- ✅ `src/calibration_loader.py` — Load/undistort/QA utilities (367 lines)
+- ✅ `calib/README.md` — Capture procedure, troubleshooting guide (269 lines)
+- ✅ `test/test_calibration.py` — Unit tests (14 tests passing)
 
 ### Gate
-- Calibration reprojection mean consistent and stable across sessions
+- ✅ Tests pass (14/14)
+- ✅ Round-trip accuracy <1e-3px
+- ⏳ Physical calibration capture (requires printed ChArUco board)
 
 ---
 

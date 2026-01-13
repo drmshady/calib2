@@ -134,17 +134,19 @@ Before marking any task complete, answer all:
 ## VII) Progress (Living)
 
 ### Current phase status (from roadmap)
-- Phase 0 (Frames/Transforms): ✅ Implemented
-- Phase 1 (Capture/Calibration): ⏳ In progress / to implement
-- Phase 2 (Marker design): ✅ Digital design complete; ⏳ physical manufacturing pending
-- Phase 2.1 (Image triage): ⏳ To implement
-- Phase 3 (Geometric core): ✅ Implemented
-- Phase 4 (L→U + hard-stop gates): ✅ Implemented in pipeline; hard-stop rules enforced in roadmap
-- Phase 5 (Bench validation): ⏳ Pending
-- Phase 6 (IOS integration + Ghost Model): ⏳ Pending
+- Phase 0 (Frames/Transforms): ✅ COMPLETE (2026-01-13)
+- Phase 1 (Camera Calibration): ✅ COMPLETE (2026-01-13)
+- Phase 2 (Marker design): ✅ Digital design complete (2026-01-13); ⏳ Physical manufacturing pending
+- Phase 2.1 (Image triage): ⏳ NOT STARTED
+- Phase 3 (Geometric core): ⏳ NOT STARTED (ready to implement)
+- Phase 4 (L→U + hard-stop gates): ⏳ NOT STARTED
+- Phase 5 (Bench validation): ⏳ NOT STARTED
+- Phase 6 (IOS integration + Ghost Model): ⏳ NOT STARTED
 
 ### Decisions log (append-only)
 - 2026-01-13: Units standardized to mm; added image triage + solver hard-stop + ghost model requirements.
+- 2026-01-13: Phase 0 (Frames/Transforms) completed - all core transform classes and tests implemented.
+- 2026-01-13: Phase 1 (Camera Calibration) completed - ChArUco-based calibration with roll diversity checks implemented.
 
 ### Next tasks (short list)
 - Implement `config.yaml` + loader enforcing `force_mm_conversion: true`.

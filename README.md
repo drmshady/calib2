@@ -48,6 +48,14 @@ Full-arch implant photogrammetry system using DSLR capture and Windows processin
 └── README.md               # This file
 ```
 
+## Phase Status
+
+- ✅ **Phase 0** (Frames/Transforms): Complete (2026-01-13)
+- ✅ **Phase 1** (Camera Calibration): Complete (2026-01-13)
+- ⏳ **Phase 2** (Marker Design): Digital design complete; physical manufacturing pending
+- ⏳ **Phase 3** (Geometric Core): Ready to implement
+- ⏳ **Phase 4-6**: Future phases
+
 ## Coordinate Frames
 
 - **L (Local/Solver)**: Bundle adjustment output frame

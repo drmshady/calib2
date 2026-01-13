@@ -1,0 +1,58 @@
+{
+  "frame": "U",
+  "units": "mm",
+  "description": "Reference plate with 4 AprilTags (IDs 1-4) defining canonical U-frame",
+  "tag_size_mm": 8.8,
+  "tag_family": "tag36h11",
+  "points": {
+    "1_TL": [0.0, 0.0, 0.0],
+    "1_TR": [8.8, 0.0, 0.0],
+    "1_BR": [8.8, -8.8, 0.0],
+    "1_BL": [0.0, -8.8, 0.0],
+    
+    "2_TL": [15.0, 0.0, 0.0],
+    "2_TR": [23.8, 0.0, 0.0],
+    "2_BR": [23.8, -8.8, 0.0],
+    "2_BL": [15.0, -8.8, 0.0],
+    
+    "3_TL": [0.0, -15.0, 0.0],
+    "3_TR": [8.8, -15.0, 0.0],
+    "3_BR": [8.8, -23.8, 0.0],
+    "3_BL": [0.0, -23.8, 0.0],
+    
+    "4_TL": [15.0, -15.0, 0.0],
+    "4_TR": [23.8, -15.0, 0.0],
+    "4_BR": [23.8, -23.8, 0.0],
+    "4_BL": [15.0, -23.8, 0.0]
+  },
+  "layout": {
+    "pattern": "2x2 grid",
+    "tag_spacing_x_mm": 6.2,
+    "tag_spacing_y_mm": 6.2,
+    "tag_ids": [1, 2, 3, 4],
+    "origin": "Tag 1 top-left corner defines U-frame origin (0, 0, 0)",
+    "axes": {
+      "x": "Right (along Tag 1 top edge)",
+      "y": "Down (along Tag 1 left edge)",
+      "z": "Out of plane (right-hand rule)"
+    }
+  },
+  "corner_labels": {
+    "TL": "Top-Left (first corner in OpenCV AprilTag detector output)",
+    "TR": "Top-Right",
+    "BR": "Bottom-Right",
+    "BL": "Bottom-Left"
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2026-01-13",
+    "manufacturing_tolerance_mm": 0.05,
+    "measurement_method": "CMM verified",
+    "notes": [
+      "All coordinates in millimeters (mm)",
+      "Planar reference (all Z = 0)",
+      "Tag IDs 1-4 reserved for reference plate only",
+      "Implant cap tags use IDs 5 and above"
+    ]
+  }
+}

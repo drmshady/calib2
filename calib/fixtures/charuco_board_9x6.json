@@ -1,0 +1,58 @@
+{
+  "board_type": "charuco",
+  "marker_family": "tag36h11",
+  "description": "ChArUco calibration board with AprilTag36h11 markers embedded in checkerboard pattern",
+  "grid": {
+    "squares_x": 9,
+    "squares_y": 6,
+    "square_size_mm": 10.0,
+    "marker_size_mm": 7.0,
+    "total_corners": 40,
+    "total_markers": 24
+  },
+  "physical_dimensions": {
+    "width_mm": 90.0,
+    "height_mm": 60.0,
+    "border_margin_mm": 5.0
+  },
+  "print_specification": {
+    "dpi": 600,
+    "color_mode": "grayscale",
+    "paper_size": "A4",
+    "substrate": "Matte cardstock or photo paper",
+    "mounting": "Rigid backing (aluminum plate, acrylic, or foam board)",
+    "flatness_tolerance_mm": 0.1
+  },
+  "marker_ids": {
+    "start_id": 0,
+    "end_id": 23,
+    "dictionary": "DICT_APRILTAG_36h11"
+  },
+  "usage": {
+    "purpose": "Camera intrinsic calibration for Nikon D5600 + 50mm lens",
+    "capture_distance_range_mm": [150, 300],
+    "required_images": 20,
+    "recommended_images": 40,
+    "roll_diversity_angles": 8,
+    "aperture": "f/16",
+    "lighting": "Diffuse, avoid specular highlights on markers"
+  },
+  "validation": {
+    "corner_detection_min": 30,
+    "marker_detection_min": 15,
+    "reprojection_error_max_px": 0.5
+  },
+  "notes": [
+    "Print at 600 DPI for accurate marker dimensions",
+    "Mount to rigid substrate to maintain flatness",
+    "Verify square size with calipers after printing (should measure 10.0 \u00b1 0.1 mm)",
+    "AprilTag markers are 7mm (70% of 10mm square)",
+    "Black squares on white background for optimal contrast",
+    "Use OpenCV's cv2.aruco.DICT_APRILTAG_36h11 dictionary"
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-01-13",
+    "units": "mm"
+  }
+}

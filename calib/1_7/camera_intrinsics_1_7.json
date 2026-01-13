@@ -1,0 +1,89 @@
+{
+  "type": "camera_intrinsics",
+  "magnification": "1:7",
+  "aperture_typical": "f/11",
+  "version": "v0.1.0",
+  "created_utc": "2026-01-01T22:30:21.474840+03:00",
+  "image_size": {
+    "width": 6000,
+    "height": 4000
+  },
+  "calibration_target": {
+    "type": "charuco_apriltag36h11",
+    "squares": {
+      "cols": 9,
+      "rows": 6
+    },
+    "square_size_mm": 10.0,
+    "marker_size_mm": 7.0,
+    "dictionary": "APRILTAG_36h11"
+  },
+  "intrinsics": {
+    "fx": 25423.876711734763,
+    "fy": 25415.31943580288,
+    "cx": 2707.1627593149115,
+    "cy": 1858.8422220816187
+  },
+  "distortion": {
+    "model": "rational",
+    "k1": 0.08869006161796573,
+    "k2": 3.083616796818914,
+    "k3": -94.43225570024427,
+    "k4": 0.0,
+    "k5": 0.0,
+    "k6": 0.0,
+    "p1": -0.0017520876695535342,
+    "p2": -0.0036730036665169967
+  },
+  "statistics": {
+    "reprojection_mean_px": 0.8628287315368652,
+    "reprojection_rms_px": 0.9777350425720215,
+    "reprojection_max_px": 2.7820396423339844,
+    "n_images": 34,
+    "total_corners_detected": 1334
+  },
+  "images_used": [
+    "DSC_0763.TIF",
+    "DSC_0764.TIF",
+    "DSC_0765.TIF",
+    "DSC_0766.TIF",
+    "DSC_0767.TIF",
+    "DSC_0768.TIF",
+    "DSC_0769.TIF",
+    "DSC_0770.TIF",
+    "DSC_0771.TIF",
+    "DSC_0773.TIF",
+    "DSC_0775.TIF",
+    "DSC_0776.TIF",
+    "DSC_0778.TIF",
+    "DSC_0779.TIF",
+    "DSC_0780.TIF",
+    "DSC_0782.TIF",
+    "DSC_0783.TIF",
+    "DSC_0784.TIF",
+    "DSC_0785.TIF",
+    "DSC_0786.TIF",
+    "DSC_0787.TIF",
+    "DSC_0790.TIF",
+    "DSC_0791.TIF",
+    "DSC_0792.TIF",
+    "DSC_0826.TIF",
+    "DSC_0829.TIF",
+    "DSC_0830.TIF",
+    "DSC_0831.TIF",
+    "DSC_0860.TIF",
+    "DSC_0861.TIF",
+    "DSC_0862.TIF",
+    "DSC_0863.TIF",
+    "DSC_0864.TIF",
+    "DSC_0866.TIF"
+  ],
+  "magnification_analysis": {
+    "focal_length_pixels": 25419.598073768822,
+    "pixel_size_um": 3.9,
+    "focal_length_mm": 99.1364324876984,
+    "sensor_width_mm": 23.4,
+    "sensor_height_mm": 15.6,
+    "sensor_diagonal_mm": 28.123299948619117
+  }
+}

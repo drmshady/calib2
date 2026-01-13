@@ -36,7 +36,7 @@ pip install numpy scipy opencv-python apriltag
 ## Phase 2: Marker Cap Design ✅ DIGITAL DESIGN COMPLETE
 
 ### Status
-Digital design and tooling complete (2026-01-11). Physical manufacturing pending.
+Digital design and tooling complete (2026-01-13). Physical manufacturing pending.
 
 ### Generated Files (Example Caps)
 - ✅ `aox-photogrammetry-flags/schemas/flag_schema_v1.3.0.json`
