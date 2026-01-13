@@ -9,11 +9,11 @@
     {
       "name": "Reprojection Errors",
       "status": "FAIL",
-      "message": "Reprojection error FAILED: mean=1.911px (>1.0px) or max=2.760px (>3.0px)",
+      "message": "Reprojection error FAILED: mean=5336436.380px (>1.0px) or max=10474789.257px (>3.0px)",
       "details": {
-        "mean_error_px": 1.9114172187132816,
-        "max_error_px": 2.7597007031804512,
-        "median_error_px": 1.8769499934547014,
+        "mean_error_px": 5336436.379878519,
+        "max_error_px": 10474789.256606411,
+        "median_error_px": 6120336.108611291,
         "n_points": 16,
         "threshold_mean_px": 1.0,
         "threshold_max_px": 3.0
@@ -22,11 +22,11 @@
     {
       "name": "Track Lengths",
       "status": "PASS",
-      "message": "Track lengths PASSED: 0.0% short tracks (mean=18.7)",
+      "message": "Track lengths PASSED: 0.0% short tracks (mean=12.9)",
       "details": {
-        "mean_track_length": 18.6875,
-        "median_track_length": 19.0,
-        "min_track_length": 17,
+        "mean_track_length": 12.875,
+        "median_track_length": 13.0,
+        "min_track_length": 12,
         "n_short_tracks": 0,
         "short_track_ratio": 0.0,
         "threshold": 4
@@ -35,12 +35,12 @@
     {
       "name": "Graph Connectivity",
       "status": "PASS",
-      "message": "Graph connectivity PASSED: single connected component (19 cameras)",
+      "message": "Graph connectivity PASSED: single connected component (13 cameras)",
       "details": {
-        "n_cameras": 19,
+        "n_cameras": 13,
         "n_components": 1,
         "component_sizes": [
-          19
+          13
         ]
       }
     },
@@ -62,10 +62,10 @@
     {
       "name": "Bridge Collinearity",
       "status": "PASS",
-      "message": "Bridge collinearity PASSED: max_dist=28.78mm, area=34.37mm\u00b2",
+      "message": "Bridge collinearity PASSED: max_dist=14.36mm, area=15.42mm\u00b2",
       "details": {
-        "max_perpendicular_distance_mm": 28.7805771504231,
-        "triangle_area_mm2": 34.37498261012265,
+        "max_perpendicular_distance_mm": 14.35866831501387,
+        "triangle_area_mm2": 15.416117319279929,
         "threshold_distance_mm": 3.0,
         "threshold_area_mm2": 5.0,
         "n_points_checked": 16

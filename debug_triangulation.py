@@ -47,8 +47,8 @@ print(f"  Image 1: {points_2d_1.shape} = {points_2d_1[:2]}")
 print(f"  Image 2: {points_2d_2.shape} = {points_2d_2[:2]}")
 
 # Undistort
-points_2d_1_undist = undistort_points(points_2d_1, K, D)
-points_2d_2_undist = undistort_points(points_2d_2, K, D)
+points_2d_1_undist = undistort_points(points_2d_1, K, D, output="pixels")
+points_2d_2_undist = undistort_points(points_2d_2, K, D, output="pixels")
 
 print(f"\nUndistorted points:")
 print(f"  Image 1: {points_2d_1_undist.shape} = {points_2d_1_undist[:2]}")

@@ -1,0 +1,79 @@
+{
+  "calibration_type": "charuco",
+  "camera_model": "Nikon D5600",
+  "lens": "50mm",
+  "aperture": "f/16",
+  "timestamp": "2026-01-13T17:40:05.322316",
+  "image_size": {
+    "width": 6000,
+    "height": 4000
+  },
+  "intrinsics": {
+    "fx": 24568.148632996475,
+    "fy": 24612.198848859585,
+    "cx": 3208.5188969119163,
+    "cy": 2146.273870075626,
+    "K": [
+      [
+        24568.148632996475,
+        0.0,
+        3208.5188969119163
+      ],
+      [
+        0.0,
+        24612.198848859585,
+        2146.273870075626
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "distortion": {
+    "k1": 53.916029292113954,
+    "k2": 7.816674545995145,
+    "p1": 0.011550542009624725,
+    "p2": 0.006631135881322233,
+    "k3": -311.71791548836325,
+    "coefficients": [
+      53.916029292113954,
+      7.816674545995145,
+      0.011550542009624725,
+      0.006631135881322233,
+      -311.71791548836325,
+      53.6931979913113,
+      -1.2261398033954853,
+      311.66090401053424,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "magnification": {
+    "median_px_per_mm": 20.137325286865234,
+    "min_px_per_mm": 18.265926361083984,
+    "max_px_per_mm": 20.99970245361328,
+    "note": "Computed from detected ChArUco corners, varies with working distance"
+  },
+  "quality": {
+    "reprojection_error_mean_px": 0.548951268196106,
+    "reprojection_error_median_px": 0.5514383912086487,
+    "reprojection_error_max_px": 0.5688313245773315,
+    "n_images_used": 33,
+    "n_unique_roll_angles": 4
+  },
+  "board": {
+    "type": "charuco",
+    "squares_x": 6,
+    "squares_y": 9,
+    "square_size_mm": 10.0,
+    "marker_size_mm": 7.0,
+    "marker_family": "DICT_4X4_1000"
+  },
+  "units": "mm"
+}

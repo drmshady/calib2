@@ -11,7 +11,7 @@ Functions:
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Optional, Sequence
 import logging
 
 from incremental_sfm import IncrementalSfM, Camera, Point3D
@@ -56,8 +56,9 @@ def compute_per_image_errors(sfm: IncrementalSfM) -> Dict[str, Dict]:
                 continue
             
             # Project to pixel coordinates (undistorted)
-            X_proj = camera.K @ (X_cam / X_cam[2])
-            pt_2d_proj = X_proj[:2]
+            # Correct formula: K @ X_cam, then normalize by Z
+            X_proj = camera.K @ X_cam
+            pt_2d_proj = X_proj[:2] / X_proj[2]
             
             # Observed point
             pt_2d_obs = point.observations[img_id]
@@ -213,6 +214,7 @@ def remove_images_from_reconstruction(
 
 def apply_quality_gate_filter(
     sfm: IncrementalSfM,
+    remove_image_ids: Optional[Sequence[str]] = None,
     percentile: float = 10.0,
     criterion: str = 'mean',
     verbose: bool = True
@@ -236,7 +238,10 @@ def apply_quality_gate_filter(
             report: Dict with filtering statistics and before/after metrics
     """
     if verbose:
-        logger.info(f"\nApplying quality gate filter (removing worst {percentile}% by {criterion} error)...")
+        if remove_image_ids is not None:
+            logger.info(f"\nApplying quality gate filter (removing {len(list(remove_image_ids))} manually selected images)...")
+        else:
+            logger.info(f"\nApplying quality gate filter (removing worst {percentile}% by {criterion} error)...")
     
     # Step 1: Compute per-image errors
     image_errors = compute_per_image_errors(sfm)
@@ -253,20 +258,36 @@ def apply_quality_gate_filter(
     if verbose:
         logger.info(f"  Before filter: mean={mean_before:.3f}px, max={max_before:.3f}px ({len(image_errors)} images)")
     
-    # Step 2: Identify worst images
-    images_to_remove, images_to_keep = filter_worst_images(
-        image_errors=image_errors,
-        percentile=percentile,
-        criterion=criterion
-    )
+    # Step 2: Choose images to remove
+    if remove_image_ids is not None:
+        # Preserve input order but drop unknown IDs
+        remove_set = {str(x) for x in remove_image_ids}
+        known_images = set(image_errors.keys())
+        images_to_remove = [img_id for img_id in image_errors.keys() if img_id in remove_set]
+
+        unknown = sorted(remove_set - known_images)
+        if unknown and verbose:
+            logger.warning(f"  Ignoring {len(unknown)} unknown image ids: {unknown[:5]}{'...' if len(unknown) > 5 else ''}")
+
+        images_to_keep = [img_id for img_id in image_errors.keys() if img_id not in set(images_to_remove)]
+    else:
+        images_to_remove, images_to_keep = filter_worst_images(
+            image_errors=image_errors,
+            percentile=percentile,
+            criterion=criterion
+        )
     
     if len(images_to_remove) == 0:
         logger.info("  No images to remove (already minimal set)")
-        return sfm, {'status': 'skipped', 'reason': 'minimal_set'}
+        return sfm, {
+            'status': 'skipped',
+            'reason': 'minimal_set' if remove_image_ids is None else 'empty_selection',
+        }
     
-    # Log worst images
+    # Log selected images
     if verbose:
-        logger.info(f"\n  Worst {len(images_to_remove)} images identified:")
+        header = "Worst" if remove_image_ids is None else "Selected"
+        logger.info(f"\n  {header} {len(images_to_remove)} images:")
         for img_id in images_to_remove:
             stats = image_errors[img_id]
             logger.info(f"    {img_id}: mean={stats['mean_error_px']:.3f}px, "
@@ -293,6 +314,8 @@ def apply_quality_gate_filter(
     report = {
         'status': 'success',
         'filter_config': {
+            'mode': 'manual' if remove_image_ids is not None else 'percentile',
+            'manual_n': len(images_to_remove) if remove_image_ids is not None else None,
             'percentile': percentile,
             'criterion': criterion
         },

@@ -1,0 +1,10 @@
+{
+  "tag_size_mm": 7.0,
+  "description": "4-tag rectangular plate layout - tag centers in millimeters",
+  "centers_mm": {
+    "1": [0.0, 0.0],
+    "2": [60.0, 0.0],
+    "3": [0.0, 40.0],
+    "4": [60.0, 40.0]
+  }
+}

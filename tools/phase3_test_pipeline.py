@@ -164,6 +164,48 @@ def load_layout_known(layout_file: str) -> Dict[int, np.ndarray]:
     return centers
 
 
+def load_apriltag_corners_from_layout(layout_file: str) -> Tuple[float, Dict[int, np.ndarray]]:
+    """Load AprilTag corner coordinates in mm from a layout JSON.
+
+    Expected layout format:
+      {
+        "tag_size_mm": <float>,
+        "centers_mm": {"<id>": [x_mm, y_mm], ...}
+      }
+
+    Returns:
+        (tag_size_mm, tag_corners_3d) where tag_corners_3d maps tag_id -> (4,3) corners (TL,TR,BR,BL).
+    """
+    with open(layout_file, 'r') as f:
+        data = json.load(f)
+
+    tag_size_mm = float(data.get('tag_size_mm', 0.0))
+    if tag_size_mm <= 0:
+        raise ValueError(f"Invalid tag_size_mm in layout: {tag_size_mm}")
+
+    centers = data.get('centers_mm', {})
+    half = tag_size_mm / 2.0
+    template = np.array(
+        [
+            [-half, -half, 0.0],
+            [ half, -half, 0.0],
+            [ half,  half, 0.0],
+            [-half,  half, 0.0],
+        ],
+        dtype=np.float64,
+    )
+
+    tag_corners_3d: Dict[int, np.ndarray] = {}
+    for tag_id_str, center_xy in centers.items():
+        tag_id = int(tag_id_str)
+        if len(center_xy) != 2:
+            raise ValueError(f"Layout center for tag {tag_id} must be [x,y], got: {center_xy}")
+        cx, cy = float(center_xy[0]), float(center_xy[1])
+        tag_corners_3d[tag_id] = template + np.array([cx, cy, 0.0], dtype=np.float64)
+
+    return tag_size_mm, tag_corners_3d
+
+
 def build_feature_tracks(
     detections_all: Dict[str, List[Dict]]
 ) -> Dict[int, List[Tuple[str, int]]]:
@@ -294,16 +336,22 @@ def run_phase3_pipeline(
     # Step 4: SfM Initialization (PnP-based with known tag layout for metric scale)
     logger.info(f"\n[4/7] SfM initialization (PnP-based)...")
     
-    # Load tag layout to get 3D positions of all tags
-    workspace_root = Path(__file__).parent.parent
-    layout_path = workspace_root / "calib" / "fixtures" / "layout_4tags.json"
-    with open(layout_path, 'r') as f:
-        layout = json.load(f)
-    
-    tag_centers_mm = {int(k): np.array(v + [0.0]) for k, v in layout["centers_mm"].items()}  # Add Z=0
-    tag_size_mm = layout["tag_size_mm"]
-    
-    logger.info(f"  Using known layout with {len(tag_centers_mm)} tags (tag size: {tag_size_mm:.2f}mm)")
+    # For the 4-tag known-layout test we expect a layout file.
+    # If none is provided, fall back to the bundled layout_4tags.json.
+    if layout_file:
+        layout_path = Path(layout_file)
+    else:
+        workspace_root = Path(__file__).parent.parent
+        layout_path = workspace_root / "calib" / "fixtures" / "layout_4tags.json"
+        logger.warning(f"  No layout_file provided; defaulting to: {layout_path}")
+
+    effective_tag_size_mm, tag_corners_3d_world = load_apriltag_corners_from_layout(str(layout_path))
+    tag_centers_mm = {
+        tag_id: np.mean(corners, axis=0)
+        for tag_id, corners in tag_corners_3d_world.items()
+    }
+
+    logger.info(f"  Using known layout with {len(tag_centers_mm)} tags (tag size: {effective_tag_size_mm:.2f}mm)")
     
     # Select first two images with most correspondences
     image_ids = sorted(detections_all.keys())
@@ -313,7 +361,7 @@ def run_phase3_pipeline(
     
     # Build 3D-2D correspondences using known layout
     # AprilTag corners in tag frame (origin at center, X right, Y down, Z out of page)
-    half_size = tag_size_mm / 2.0
+    half_size = effective_tag_size_mm / 2.0
     tag_corners_3d_template = np.array([
         [-half_size, -half_size, 0],  # Top-left
         [ half_size, -half_size, 0],  # Top-right
@@ -336,7 +384,7 @@ def run_phase3_pipeline(
     points_2d_1 = []
     for det in detections_all[img_id1]:
         tag_id = det["tag_id"]
-        corners = det["corners"]  # (4, 2) array
+        corners = det["corners"]  # (4, 2) distorted pixels
         corners_3d = get_tag_corners_world(tag_id)
         if corners_3d is not None:
             points_3d_1.extend(corners_3d)
@@ -345,12 +393,18 @@ def run_phase3_pipeline(
     points_3d_1 = np.array(points_3d_1, dtype=np.float32)
     points_2d_1 = np.array(points_2d_1, dtype=np.float32)
     
+    # CRITICAL: Undistort observations before PnP (project standard: undistorted pixels)
+    points_2d_1_undist = cv2.undistortPoints(
+        points_2d_1.reshape(-1, 1, 2), K, D, P=K
+    ).reshape(-1, 2)
+    
     # Solve PnP for view 1 using ALL tags with known layout
+    # Use distCoeffs=None since observations are already undistorted
     success, rvec1, tvec1 = cv2.solvePnP(
         points_3d_1,
-        points_2d_1,
+        points_2d_1_undist,
         K,
-        D,
+        None,  # distCoeffs=None (undistorted pixels)
         flags=cv2.SOLVEPNP_ITERATIVE
     )
     
@@ -364,7 +418,7 @@ def run_phase3_pipeline(
     points_2d_2 = []
     for det in detections_all[img_id2]:
         tag_id = det["tag_id"]
-        corners = det["corners"]
+        corners = det["corners"]  # distorted pixels
         corners_3d = get_tag_corners_world(tag_id)
         if corners_3d is not None:
             points_3d_2.extend(corners_3d)
@@ -373,11 +427,16 @@ def run_phase3_pipeline(
     points_3d_2 = np.array(points_3d_2, dtype=np.float32)
     points_2d_2 = np.array(points_2d_2, dtype=np.float32)
     
+    # Undistort observations before PnP
+    points_2d_2_undist = cv2.undistortPoints(
+        points_2d_2.reshape(-1, 1, 2), K, D, P=K
+    ).reshape(-1, 2)
+    
     success, rvec2, tvec2 = cv2.solvePnP(
         points_3d_2,
-        points_2d_2,
+        points_2d_2_undist,
         K,
-        D,
+        None,  # distCoeffs=None (undistorted pixels)
         flags=cv2.SOLVEPNP_ITERATIVE
     )
     
@@ -386,14 +445,12 @@ def run_phase3_pipeline(
     
     R2, _ = cv2.Rodrigues(rvec2)
     
-    # Validate PnP by checking reprojection errors with DISTORTED coordinates
-    points_reproj1, _ = cv2.projectPoints(points_3d_1, rvec1, tvec1, K, D)
-    points_reproj1 = points_reproj1.reshape(-1, 2)
-    reproj_error1 = np.mean(np.linalg.norm(points_2d_1 - points_reproj1, axis=1))
+    # Validate PnP by checking reprojection errors with UNDISTORTED coordinates
+    points_reproj1 = cv2.projectPoints(points_3d_1, rvec1, tvec1, K, None)[0].reshape(-1, 2)
+    reproj_error1 = np.mean(np.linalg.norm(points_2d_1_undist - points_reproj1, axis=1))
     
-    points_reproj2, _ = cv2.projectPoints(points_3d_2, rvec2, tvec2, K, D)
-    points_reproj2 = points_reproj2.reshape(-1, 2)
-    reproj_error2 = np.mean(np.linalg.norm(points_2d_2 - points_reproj2, axis=1))
+    points_reproj2 = cv2.projectPoints(points_3d_2, rvec2, tvec2, K, None)[0].reshape(-1, 2)
+    reproj_error2 = np.mean(np.linalg.norm(points_2d_2_undist - points_reproj2, axis=1))
     
     if reproj_error1 > 5.0 or reproj_error2 > 5.0:
         raise ValueError(f"PnP reprojection error too high: view1={reproj_error1:.2f}px, view2={reproj_error2:.2f}px")
@@ -580,8 +637,10 @@ def run_phase3_pipeline(
             cam = sfm.cameras[img_id]
             pt_2d = point.observations[img_id]
             X_cam = cam.R @ point.xyz + cam.t.ravel()
-            X_proj = cam.K @ (X_cam / X_cam[2])
-            error = np.linalg.norm(pt_2d - X_proj[:2])
+            # Correct projection: K @ X_cam, then normalize
+            X_proj = cam.K @ X_cam
+            pt_proj = X_proj[:2] / X_proj[2]
+            error = np.linalg.norm(pt_2d - pt_proj)
             point_errors.append(error)
             if point_id == list(sfm.points_3d.keys())[0]:  # First point
                 logger.info(f"    DEBUG Point {point_id} in {img_id}: error={error:.3f}px")
@@ -598,11 +657,10 @@ def run_phase3_pipeline(
         # Build correspondences
         correspondences = []
         points_2d_all = get_2d_points_from_detections(detections_all[img_id])
-        # Undistort consistently: normalized then convert to pixels
-        points_2d_norm = cv2.undistortPoints(
-            points_2d_all.reshape(-1, 1, 2), K, D, P=None
+        # Undistort consistently into UNDISTORTED PIXELS
+        points_2d_all_undist = cv2.undistortPoints(
+            points_2d_all.reshape(-1, 1, 2), K, D, P=K
         ).reshape(-1, 2)
-        points_2d_all_undist = (K[:2, :2] @ points_2d_norm.T + K[:2, 2:3]).T
         
         # Match features to existing 3D points
         for track_id, track in feature_tracks_filtered.items():
@@ -666,12 +724,12 @@ def run_phase3_pipeline(
     logger.info(f"\n[7/7] Quality assurance validation...")
     
     # Load AprilTag corners for scale check
-    apriltag_corners_3d = {}
-    if layout_file:
-        layout_centers = load_layout_known(layout_file)
-        # TODO: Compute corner positions from centers (simplified for now)
-    
-    qa_report = run_full_qa(sfm_opt, apriltag_corners_3d=None, expected_tag_edge_mm=tag_size_mm)
+    # For known-layout runs, we can provide tag corner geometry for the scale sanity check.
+    qa_report = run_full_qa(
+        sfm_opt,
+        apriltag_corners_3d=tag_corners_3d_world if tag_corners_3d_world else None,
+        expected_tag_edge_mm=effective_tag_size_mm,
+    )
     
     if verbose:
         print_qa_report(qa_report, verbose=True)
@@ -679,10 +737,15 @@ def run_phase3_pipeline(
     # Export results
     logger.info(f"\nExporting results to {output_dir}...")
     
-    # Save L-frame structure
+    # Save L-frame structure (backward compatible filename)
     structure_file = output_path / "structure_L.json"
     sfm_opt.export_to_json(str(structure_file))
     logger.info(f"  ✅ L-frame structure: {structure_file}")
+
+    # Save canonical Phase 0+ name expected by GUI + downstream tooling
+    refpoints_file = output_path / "refpoints_L.json"
+    sfm_opt.export_to_json(str(refpoints_file))
+    logger.info(f"  ✅ L-frame refpoints: {refpoints_file}")
     
     # Save QA report
     qa_file = output_path / "qa_report.json"
@@ -715,8 +778,8 @@ def run_phase3_pipeline(
         "n_points_3d": len(sfm_opt.points_3d),
         "n_tracks": len(feature_tracks_filtered),
         "calibration_file": str(calib_file),
-        "layout_file": str(layout_file) if layout_file else None,
-        "tag_size_mm": tag_size_mm,
+        "layout_file": str(layout_path) if layout_path else None,
+        "tag_size_mm": float(effective_tag_size_mm),
         "ba_info": ba_info,
         "qa_passed": qa_report.passed()
     }

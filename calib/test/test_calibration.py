@@ -130,7 +130,7 @@ class TestUndistortPoints:
         points = np.array([[500.0, 400.0], [600.0, 500.0]])
         
         # Undistort
-        points_normalized = undistort_points(points, K, D)
+        points_normalized = undistort_points(points, K, D, output="normalized")
         
         # With no distortion and points at principal point, should be near origin
         assert points_normalized[0, 0] == pytest.approx(0.0, abs=1e-6)
@@ -149,7 +149,7 @@ class TestUndistortPoints:
         )
         
         # Round-trip: distorted → normalized → distorted
-        points_normalized = undistort_points(test_points, K, D)
+        points_normalized = undistort_points(test_points, K, D, output="normalized")
         points_recovered = redistort_points(points_normalized, K, D)
         
         # Check accuracy
@@ -172,7 +172,7 @@ class TestUndistortPoints:
         # Single point as 1D array
         point = np.array([550.0, 450.0])
         
-        result = undistort_points(point, K, D)
+        result = undistort_points(point, K, D, output="normalized")
         
         assert result.shape == (1, 2)
 

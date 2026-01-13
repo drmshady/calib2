@@ -1,0 +1,53 @@
+{
+  "quality_gate": {
+    "status": "success",
+    "filter_config": {
+      "mode": "manual",
+      "manual_n": 1,
+      "percentile": 10.0,
+      "criterion": "mean"
+    },
+    "before": {
+      "n_images": 14,
+      "mean_error_px": 1.956795296624474,
+      "max_error_px": 5.050121732121016
+    },
+    "after": {
+      "n_images": 13,
+      "mean_error_px": 1.718847109278586,
+      "max_error_px": 5.013814499056375
+    },
+    "removed": {
+      "n_images_removed": 1,
+      "n_cameras_before": 14,
+      "n_cameras_after": 13,
+      "n_points_before": 16,
+      "n_points_after": 16,
+      "n_points_removed": 0,
+      "removed_images": [
+        "DSC_0287"
+      ],
+      "removed_points": []
+    }
+  },
+  "bundle_adjustment": {
+    "success": true,
+    "message": "`xtol` termination condition is satisfied.",
+    "initial_cost": 7628119.295453265,
+    "final_cost": 1913.44614640429,
+    "cost_reduction": 7626205.849306861,
+    "n_iterations": 55,
+    "n_cameras": 13,
+    "n_points": 16,
+    "n_observations": 206,
+    "optimality": 11228625.993833821,
+    "status": 3
+  },
+  "source_dir": "D:\\calib2\\calib\\test\\output",
+  "layout_file": "D:\\calib2\\calib\\fixtures\\layout_4tags.json",
+  "tag_size_mm": 7.0,
+  "qa_passed": false,
+  "removed_images": [
+    "DSC_0287"
+  ]
+}

@@ -66,7 +66,7 @@ def triangulate_dlt(
     by constructing A @ X = 0 and solving via SVD.
     
     Args:
-        points_2d: (N, 2) array of normalized 2D points (one per view)
+        points_2d: (N, 2) array of 2D points in undistorted pixel coordinates (one per view)
         projection_matrices: (N, 3, 4) array of projection matrices P = K @ [R | t]
         normalize: If True, normalize points for numerical stability
         
@@ -108,8 +108,8 @@ def triangulate_opencv(
     refines with additional views via DLT.
     
     Args:
-        points_2d: List of (2,) normalized 2D points
-        projection_matrices: List of (3, 4) projection matrices
+        points_2d: List of (2,) 2D points in undistorted pixel coordinates
+        projection_matrices: List of (3, 4) projection matrices P = K @ [R | t]
         
     Returns:
         point_3d: (3,) array in 3D
@@ -150,8 +150,8 @@ def compute_reprojection_error(
     Projects 3D points to image plane and computes pixel distance to observations.
     
     Args:
-        points_3d: (N, 3) array of 3D points in world coordinates
-        points_2d: (N, 2) array of observed normalized 2D points
+        points_3d: (N, 3) array of 3D points in world coordinates (mm)
+        points_2d: (N, 2) array of observed 2D points in undistorted pixel coordinates
         K: (3, 3) camera intrinsic matrix
         R: (3, 3) camera rotation matrix (world → camera)
         t: (3, 1) or (3,) camera translation vector
@@ -170,10 +170,9 @@ def compute_reprojection_error(
     
     X_cam = (R @ points_3d.T + t).T  # (N, 3)
     
-    # Project to image plane: x = K @ X_cam
-    X_cam_homog = X_cam / X_cam[:, 2:3]  # Normalize by Z
-    points_proj = (K @ X_cam_homog.T).T  # (N, 3)
-    points_proj = points_proj[:, :2] / points_proj[:, 2:3]  # (N, 2) in pixels
+    # Project to image plane: x = K @ X_cam, then normalize by Z
+    X_proj = (K @ X_cam.T).T  # (N, 3) homogeneous
+    points_proj = X_proj[:, :2] / X_proj[:, 2:3]  # (N, 2) in pixels
     
     # Compute errors
     points_2d = np.array(points_2d)

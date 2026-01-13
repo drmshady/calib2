@@ -65,6 +65,9 @@ class CalibrationGUI:
         self.qg_criterion = tk.StringVar(value="mean")
         self.qg_sfm = None
         self.qg_image_errors = []  # List of (image_name, mean, max, median) tuples
+        self.qg_manual_status = {}  # image_id -> bool (True=REMOVE, False=KEEP)
+        self.qg_loaded_metadata = None
+        self.qg_loaded_structure_path = None
         
         self.is_running = False
         
@@ -72,19 +75,24 @@ class CalibrationGUI:
         
     def create_widgets(self):
         # Create notebook (tabs)
-        notebook = ttk.Notebook(self.root)
-        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Create tabs
-        calib_tab = ttk.Frame(notebook, padding="10")
-        validation_tab = ttk.Frame(notebook, padding="10")
-        reconstruction_tab = ttk.Frame(notebook, padding="10")
-        quality_gate_tab = ttk.Frame(notebook, padding="10")
+        calib_tab = ttk.Frame(self.notebook, padding="10")
+        validation_tab = ttk.Frame(self.notebook, padding="10")
+        reconstruction_tab = ttk.Frame(self.notebook, padding="10")
+        quality_gate_tab = ttk.Frame(self.notebook, padding="10")
         
-        notebook.add(calib_tab, text="Calibration")
-        notebook.add(validation_tab, text="Validation (PnP + BA)")
-        notebook.add(reconstruction_tab, text="Phase 3/4 Reconstruction")
-        notebook.add(quality_gate_tab, text="Quality Gate")
+        self.calib_tab = calib_tab
+        self.validation_tab = validation_tab
+        self.reconstruction_tab = reconstruction_tab
+        self.quality_gate_tab = quality_gate_tab
+
+        self.notebook.add(calib_tab, text="Calibration")
+        self.notebook.add(validation_tab, text="Validation (PnP + BA)")
+        self.notebook.add(reconstruction_tab, text="Phase 3/4 Reconstruction")
+        self.notebook.add(quality_gate_tab, text="Quality Gate")
         
         # Create calibration interface
         self.create_calibration_tab(calib_tab)
@@ -677,6 +685,17 @@ class CalibrationGUI:
     def finish_validation(self, success):
         """Finish validation and re-enable controls."""
         self.is_running = False
+        try:
+            self.val_progress.stop()
+        except Exception:
+            pass
+        try:
+            self.val_run_button.config(state=tk.NORMAL)
+        except Exception:
+            pass
+
+        if success:
+            messagebox.showinfo("Success", "Validation completed successfully!")
     
     def create_reconstruction_tab(self, parent):
         """Create Phase 3/4 reconstruction interface."""
@@ -920,13 +939,14 @@ class CalibrationGUI:
                     tag_size_mm=self.recon_tag_size.get(),
                     verbose=True
                 )
-                
-                # Check Phase 3 QA
-                if not phase3_metadata["qa_passed"]:
+
+                # Always allow outlier analysis + re-opt even if QA failed.
+                if not phase3_metadata.get("qa_passed", False):
                     self.recon_log_text("")
-                    self.recon_log_text("❌ Phase 3 QA FAILED - reconstruction did not pass quality gates")
-                    self.finish_reconstruction(success=False)
-                    return
+                    self.recon_log_text("⚠ Phase 3 QA did not pass. Use the Quality Gate tab to remove outlier images and re-run BA + QA.")
+
+                # Kick the user into Quality Gate with this output directory.
+                self.root.after(0, lambda: self.open_quality_gate(self.recon_output.get()))
                 
                 # Run Phase 4 if enabled
                 if self.recon_phase4.get():
@@ -1064,7 +1084,27 @@ class CalibrationGUI:
         
         ttk.Button(button_frame, text="Apply Filter & Re-optimize", command=self.qg_apply_filter, 
                   style='Accent.TButton').pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Mark Selected REMOVE", command=lambda: self.qg_mark_selected(True)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Mark Selected KEEP", command=lambda: self.qg_mark_selected(False)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Reset Manual Marks", command=self.qg_reset_manual_marks).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Export Statistics", command=self.qg_export_stats).pack(side=tk.LEFT, padx=5)
+
+        # Double-click toggles KEEP/REMOVE
+        self.qg_tree.bind('<Double-1>', self.qg_toggle_selected)
+
+    def open_quality_gate(self, reconstruction_dir: str):
+        """Open Quality Gate tab and load a reconstruction directory."""
+        if reconstruction_dir:
+            self.qg_reconstruction_dir.set(reconstruction_dir)
+            try:
+                self.qg_load_reconstruction()
+            except Exception:
+                # qg_load_reconstruction will show its own error dialog
+                pass
+        try:
+            self.notebook.select(self.quality_gate_tab)
+        except Exception:
+            pass
     
     def qg_browse_reconstruction(self):
         """Browse for reconstruction output directory."""
@@ -1080,11 +1120,18 @@ class CalibrationGUI:
         
         recon_dir = Path(self.qg_reconstruction_dir.get())
 
-        # Prefer loading from canonical SfM export (works for all Phase 3 outputs)
+        # Prefer loading from canonical SfM export; fall back to older structure_L.json
         refpoints_path = recon_dir / "refpoints_L.json"
-        if not refpoints_path.exists():
-            messagebox.showerror("Error", f"No refpoints_L.json found in {recon_dir}")
+        structure_path = recon_dir / "structure_L.json"
+        if refpoints_path.exists():
+            structure_to_load = refpoints_path
+        elif structure_path.exists():
+            structure_to_load = structure_path
+        else:
+            messagebox.showerror("Error", f"No refpoints_L.json or structure_L.json found in {recon_dir}")
             return
+
+        self.qg_loaded_structure_path = str(structure_to_load)
 
         # metadata.json is optional (used only for extra info)
         metadata_path = recon_dir / "metadata.json"
@@ -1101,8 +1148,12 @@ class CalibrationGUI:
 
             # Load SfM from refpoints_L.json
             sfm = IncrementalSfM(K=np.eye(3, dtype=np.float64))
-            sfm.load_from_json(str(refpoints_path))
+            sfm.load_from_json(str(structure_to_load))
             self.qg_sfm = sfm
+
+            # Reset manual marks on load
+            self.qg_manual_status = {}
+            self.qg_loaded_metadata = None
 
             # Compute per-image errors
             image_errors = compute_per_image_errors(self.qg_sfm)
@@ -1138,20 +1189,30 @@ class CalibrationGUI:
                 try:
                     with open(metadata_path, 'r') as f:
                         metadata = json.load(f)
-                    if isinstance(metadata, dict) and 'images' in metadata:
-                        images = metadata.get('images', {})
-                        extra = (
-                            f"\n\nRun summary:\n"
-                            f"  total images: {images.get('total', 'N/A')}\n"
-                            f"  registered: {images.get('registered', 'N/A')}\n"
-                            f"  after quality gate: {images.get('after_quality_gate', 'N/A')}"
-                        )
+                    if isinstance(metadata, dict):
+                        self.qg_loaded_metadata = metadata
+
+                        # Prefer Phase 3 metadata fields
+                        tag_size = metadata.get('tag_size_mm', None)
+                        layout_file = metadata.get('layout_file', None)
+                        qa_passed = metadata.get('qa_passed', None)
+
+                        extra_lines = []
+                        if tag_size is not None:
+                            extra_lines.append(f"  tag_size_mm: {tag_size}")
+                        if layout_file:
+                            extra_lines.append(f"  layout_file: {layout_file}")
+                        if qa_passed is not None:
+                            extra_lines.append(f"  qa_passed: {qa_passed}")
+
+                        if extra_lines:
+                            extra = "\n\nMetadata:\n" + "\n".join(extra_lines)
                 except Exception:
                     extra = ""
 
             messagebox.showinfo(
                 "Success",
-                f"Loaded reconstruction from:\n{refpoints_path}\n\n"
+                f"Loaded reconstruction from:\n{structure_to_load}\n\n"
                 f"Cameras: {len(self.qg_sfm.cameras)}\n"
                 f"3D points: {len(self.qg_sfm.points_3d)}"
                 f"{extra}"
@@ -1171,14 +1232,12 @@ class CalibrationGUI:
         if not self.qg_image_errors:
             return
         
-        # Calculate cutoff
-        n_images = len(self.qg_image_errors)
-        n_remove = max(0, int(n_images * self.qg_cutoff_percentile.get() / 100))
+        remove_set = self.qg_get_remove_set()
         
         # Add items
         for i, (image_name, mean_err, max_err, median_err) in enumerate(self.qg_image_errors):
-            status = "REMOVE" if i < n_remove else "KEEP"
-            tag = 'remove' if i < n_remove else 'keep'
+            status = "REMOVE" if image_name in remove_set else "KEEP"
+            tag = 'remove' if image_name in remove_set else 'keep'
             
             self.qg_tree.insert('', tk.END, values=(
                 image_name,
@@ -1209,7 +1268,8 @@ class CalibrationGUI:
         
         # Calculate statistics
         n_images = len(self.qg_image_errors)
-        n_remove = max(0, int(n_images * self.qg_cutoff_percentile.get() / 100))
+        remove_set = self.qg_get_remove_set()
+        n_remove = len(remove_set)
         n_keep = n_images - n_remove
         
         if n_remove == 0:
@@ -1218,19 +1278,20 @@ class CalibrationGUI:
         else:
             # Calculate before/after errors
             criterion_values = [img[criterion_idx] for img in self.qg_image_errors]
-            
+
             before_mean = sum(criterion_values) / len(criterion_values)
-            after_values = criterion_values[n_remove:]
+            after_values = [row[criterion_idx] for row in self.qg_image_errors if row[0] not in remove_set]
             after_mean = sum(after_values) / len(after_values) if after_values else 0
             
             improvement = (before_mean - after_mean) / before_mean * 100 if before_mean > 0 else 0
             
-            worst_images = [img[0] for img in self.qg_image_errors[:n_remove]]
+            worst_images = [img[0] for img in self.qg_image_errors if img[0] in remove_set]
             worst_list = ", ".join(worst_images[:3])
             if len(worst_images) > 3:
                 worst_list += f" (+{len(worst_images)-3} more)"
-            
-            stats_text = (f"📊 {n_images} images → Remove {n_remove} ({self.qg_cutoff_percentile.get():.0f}%) = {n_keep} remaining\n"
+
+            mode = "manual" if self.qg_manual_status else f"{self.qg_cutoff_percentile.get():.0f}%"
+            stats_text = (f"📊 {n_images} images → Remove {n_remove} ({mode}) = {n_keep} remaining\n"
                          f"📉 {criterion.title()} error: {before_mean:.2f}px → {after_mean:.2f}px "
                          f"({improvement:+.1f}% improvement)\n"
                          f"🗑️ Worst: {worst_list}")
@@ -1244,7 +1305,8 @@ class CalibrationGUI:
             messagebox.showerror("Error", "Please load a reconstruction first!")
             return
         
-        n_remove = max(0, int(len(self.qg_image_errors) * self.qg_cutoff_percentile.get() / 100))
+        images_to_remove = self.qg_get_images_to_remove_ordered()
+        n_remove = len(images_to_remove)
         
         if n_remove == 0:
             messagebox.showinfo("Info", "No images to remove at current threshold.")
@@ -1262,13 +1324,22 @@ class CalibrationGUI:
             src_dir = str(Path(__file__).parent.parent / "src")
             if src_dir not in sys.path:
                 sys.path.insert(0, src_dir)
+
+            # Purge legacy tools/bundle_adjustment module if already imported
+            mod = sys.modules.get('bundle_adjustment')
+            if mod is not None:
+                mod_file = getattr(mod, '__file__', '') or ''
+                if mod_file.replace('\\', '/').endswith('/tools/bundle_adjustment.py'):
+                    del sys.modules['bundle_adjustment']
             
             from image_quality_filter import apply_quality_gate_filter
             from bundle_adjustment import bundle_adjust_global
+            from reconstruction_qa import run_full_qa
             
             # Apply filter
             sfm_filtered, filter_report = apply_quality_gate_filter(
                 sfm=self.qg_sfm,
+                remove_image_ids=images_to_remove,
                 percentile=self.qg_cutoff_percentile.get(),
                 criterion=self.qg_criterion.get(),
                 verbose=True
@@ -1282,11 +1353,12 @@ class CalibrationGUI:
                 return
             
             # Re-run bundle adjustment
+            # Don't fix first camera since we removed images - coordinate frame is already established
             messagebox.showinfo("Info", "Re-running bundle adjustment...")
             
             sfm_refined, ba_info = bundle_adjust_global(
                 sfm=sfm_filtered,
-                fix_first_camera=True,
+                fix_first_camera=False,  # Don't fix - frame already established from full BA
                 loss_function='huber',
                 loss_scale=1.0,
                 verbose=1
@@ -1296,14 +1368,81 @@ class CalibrationGUI:
             output_dir = Path(self.qg_reconstruction_dir.get()) / "filtered"
             output_dir.mkdir(exist_ok=True)
             
-            # Export refpoints and metadata
-            sfm_refined.export_to_json(output_dir / "refpoints_L.json")
+            # Export structure (both names for compatibility)
+            sfm_refined.export_to_json(str(output_dir / "refpoints_L.json"))
+            sfm_refined.export_to_json(str(output_dir / "structure_L.json"))
+
+            # Try to run final QA (uses layout metadata if present)
+            apriltag_corners_3d = None
+            expected_tag_edge_mm = None
+            layout_file = None
+
+            if isinstance(self.qg_loaded_metadata, dict):
+                layout_file = self.qg_loaded_metadata.get('layout_file')
+                expected_tag_edge_mm = self.qg_loaded_metadata.get('tag_size_mm')
+
+            def _load_apriltag_corners(layout_path: str):
+                import numpy as np
+                with open(layout_path, 'r') as f:
+                    data = json.load(f)
+                ts = float(data.get('tag_size_mm', 0.0))
+                centers = data.get('centers_mm', {})
+                half = ts / 2.0
+                template = np.array(
+                    [[-half, -half, 0.0], [half, -half, 0.0], [half, half, 0.0], [-half, half, 0.0]],
+                    dtype=np.float64,
+                )
+                corners = {}
+                for tid, c in centers.items():
+                    cx, cy = float(c[0]), float(c[1])
+                    corners[int(tid)] = template + np.array([cx, cy, 0.0], dtype=np.float64)
+                return ts, corners
+
+            if layout_file and Path(str(layout_file)).exists():
+                try:
+                    ts, corners = _load_apriltag_corners(str(layout_file))
+                    apriltag_corners_3d = corners
+                    if expected_tag_edge_mm is None:
+                        expected_tag_edge_mm = ts
+                except Exception:
+                    apriltag_corners_3d = None
+
+            if expected_tag_edge_mm is None:
+                expected_tag_edge_mm = 8.8
+
+            qa_report = run_full_qa(
+                sfm_refined,
+                apriltag_corners_3d=apriltag_corners_3d,
+                expected_tag_edge_mm=float(expected_tag_edge_mm),
+            )
+
+            qa_data = {
+                "overall_status": qa_report.overall_status.value,
+                "passed": qa_report.passed(),
+                "hard_failures": qa_report.hard_failures,
+                "warnings": qa_report.warnings,
+                "checks": [
+                    {
+                        "name": check.name,
+                        "status": check.status.value,
+                        "message": check.message,
+                        "details": check.details,
+                    }
+                    for check in qa_report.checks
+                ],
+            }
+            with open(output_dir / "qa_report.json", 'w') as f:
+                json.dump(qa_data, f, indent=2)
 
             # Export minimal metadata for bookkeeping (GUI loads from refpoints_L.json)
             metadata = {
                 'quality_gate': filter_report,
                 'bundle_adjustment': ba_info,
-                'source_dir': str(Path(self.qg_reconstruction_dir.get()).resolve())
+                'source_dir': str(Path(self.qg_reconstruction_dir.get()).resolve()),
+                'layout_file': layout_file,
+                'tag_size_mm': expected_tag_edge_mm,
+                'qa_passed': qa_report.passed(),
+                'removed_images': images_to_remove,
             }
 
             with open(output_dir / "metadata.json", 'w') as f:
@@ -1313,7 +1452,8 @@ class CalibrationGUI:
                                f"Filtered reconstruction saved to:\n{output_dir}\n\n"
                                f"Removed: {filter_report['removed']['n_images_removed']} images\n"
                                f"Remaining cameras: {filter_report['removed']['n_cameras_after']}\n"
-                               f"Remaining points: {filter_report['removed']['n_points_after']}")
+                               f"Remaining points: {filter_report['removed']['n_points_after']}\n"
+                               f"QA: {qa_data['overall_status']} (passed={qa_data['passed']})")
             
             # Reload to show new results
             self.qg_reconstruction_dir.set(str(output_dir))
@@ -1361,12 +1501,55 @@ class CalibrationGUI:
         self.recon_run_button.config(state=tk.NORMAL)
         
         if success:
-            messagebox.showinfo("Success", "Reconstruction completed successfully!\n\nCheck the output directory for results.")
-        self.val_progress.stop()
-        self.val_run_button.config(state=tk.NORMAL)
-        
-        if success:
-            messagebox.showinfo("Success", "Validation completed successfully!")
+            messagebox.showinfo("Success", "Reconstruction finished. Use the Quality Gate tab to review per-image errors and optionally re-optimize.")
+        else:
+            messagebox.showerror("Error", "Reconstruction failed. See the Reconstruction Log for details.")
+
+    def qg_get_remove_set(self):
+        """Compute the set of images currently marked for removal."""
+        if self.qg_manual_status:
+            return {img_id for img_id, remove in self.qg_manual_status.items() if remove}
+
+        n_images = len(self.qg_image_errors)
+        n_remove = max(0, int(n_images * self.qg_cutoff_percentile.get() / 100))
+        return {img_id for (img_id, _, _, _) in self.qg_image_errors[:n_remove]}
+
+    def qg_get_images_to_remove_ordered(self):
+        """Return images marked for removal in worst-to-best order."""
+        remove_set = self.qg_get_remove_set()
+        return [row[0] for row in self.qg_image_errors if row[0] in remove_set]
+
+    def qg_mark_selected(self, remove: bool):
+        """Mark selected rows as REMOVE/KEEP (manual override)."""
+        for item in self.qg_tree.selection():
+            values = self.qg_tree.item(item, 'values')
+            if not values:
+                continue
+            img_id = values[0]
+            self.qg_manual_status[img_id] = bool(remove)
+        self.qg_update_preview()
+
+    def qg_reset_manual_marks(self):
+        self.qg_manual_status = {}
+        self.qg_update_preview()
+
+    def qg_toggle_selected(self, event=None):
+        """Double-click toggles selected image between REMOVE/KEEP."""
+        item = self.qg_tree.identify_row(event.y) if event is not None else None
+        if not item:
+            return
+        values = self.qg_tree.item(item, 'values')
+        if not values:
+            return
+        img_id = values[0]
+        current = self.qg_manual_status.get(img_id, None)
+        if current is None:
+            # Default toggle based on current computed status
+            current_remove = img_id in self.qg_get_remove_set()
+            self.qg_manual_status[img_id] = not current_remove
+        else:
+            self.qg_manual_status[img_id] = not current
+        self.qg_update_preview()
 
 
 class LogRedirector:

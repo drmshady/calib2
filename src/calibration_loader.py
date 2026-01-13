@@ -2,12 +2,18 @@
 Calibration loader and utilities for camera intrinsics.
 
 Provides functions to load camera calibration data, undistort points,
-and validate calibration quality. All coordinates in pixels, distortion
-correction converts distorted → normalized (undistorted) coordinates.
+and validate calibration quality.
+
+COORDINATE CONVENTION:
+        - Distorted detections start as pixel coordinates.
+        - Project standard for reconstruction/bundle adjustment is **undistorted pixels**
+            (use `cv2.undistortPoints(..., P=K)`), because residual thresholds are in pixels.
+        - For epipolar/essential-matrix workflows, **normalized** coordinates are sometimes
+            required; this module supports both.
 
 Functions:
     load_calibration: Load K, D, image_size from JSON
-    undistort_points: Convert distorted pixels to normalized coordinates
+    undistort_points: Convert distorted pixels to undistorted pixels (default) or normalized
     get_magnification: Extract magnification from calibration metadata
     CalibrationQA: Validation class for calibration quality checks
 """
@@ -16,7 +22,7 @@ import numpy as np
 import json
 import cv2
 from pathlib import Path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Literal
 
 
 def load_calibration(filepath: str) -> Tuple[np.ndarray, np.ndarray, Tuple[int, int], Dict]:
@@ -100,12 +106,18 @@ def load_calibration(filepath: str) -> Tuple[np.ndarray, np.ndarray, Tuple[int, 
 def undistort_points(
     points: np.ndarray,
     K: np.ndarray,
-    D: np.ndarray
+    D: np.ndarray,
+    output: Literal["pixels", "normalized"] = "pixels",
 ) -> np.ndarray:
-    """Undistort pixel coordinates to normalized (undistorted) coordinates.
-    
-    Removes lens distortion from 2D image points. Output coordinates are
-    normalized (dimensionless) camera coordinates, not pixels.
+    """Undistort distorted pixel coordinates.
+
+    Removes lens distortion from 2D image points.
+
+    Output modes:
+        - output='pixels' (DEFAULT): undistorted pixel coordinates (project standard)
+          Equivalent to `cv2.undistortPoints(..., P=K)`.
+        - output='normalized': normalized (dimensionless) camera coordinates
+          Equivalent to `cv2.undistortPoints(..., P=None)`.
     
     Args:
         points: Nx2 array of distorted pixel coordinates
@@ -113,11 +125,7 @@ def undistort_points(
         D: Distortion coefficients [k1, k2, p1, p2, k3]
         
     Returns:
-        Nx2 array of normalized undistorted coordinates
-        
-    Note:
-        Normalized coordinates can be converted back to pixels via:
-            pixels = K @ [x_norm, y_norm, 1]
+        Nx2 array of undistorted coordinates (pixels or normalized per `output`)
     """
     points = np.array(points, dtype=np.float64)
     if points.ndim == 1:
@@ -126,8 +134,11 @@ def undistort_points(
     # Reshape for OpenCV (Nx1x2)
     points_cv = points.reshape(-1, 1, 2)
     
-    # Undistort (returns normalized coordinates)
-    points_undistorted = cv2.undistortPoints(points_cv, K, D, P=None)
+    if output not in ("pixels", "normalized"):
+        raise ValueError(f"output must be 'pixels' or 'normalized', got: {output!r}")
+
+    P = K if output == "pixels" else None
+    points_undistorted = cv2.undistortPoints(points_cv, K, D, P=P)
     
     # Reshape back to Nx2
     return points_undistorted.reshape(-1, 2)
@@ -291,7 +302,7 @@ class CalibrationQA:
         )
         
         # Round-trip: distorted → normalized → distorted
-        points_normalized = undistort_points(test_points, self.K, self.D)
+        points_normalized = undistort_points(test_points, self.K, self.D, output="normalized")
         points_recovered = redistort_points(points_normalized, self.K, self.D)
         
         # Compute error

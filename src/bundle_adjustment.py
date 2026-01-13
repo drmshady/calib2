@@ -74,10 +74,10 @@ def project_point(
         # Point behind camera
         return np.array([np.nan, np.nan])
     
-    X_norm = X_cam / X_cam[2]
-    pt_proj = K @ X_norm
+    # Correct projection: x = K @ X_cam, then normalize by Z
+    X_proj = K @ X_cam
     
-    return pt_proj[:2]
+    return X_proj[:2] / X_proj[2]
 
 
 def compute_residuals(
