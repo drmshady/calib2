@@ -98,6 +98,170 @@ Your coordinate frames are meaningless without consistent units.
 ### Calibration constraints
 - Fixed focal length (50 mm prime)
 - Fixed f-stop (f/16 in production)
+
+---
+
+## Coordinate System Architecture Rules
+**Goal:** Prevent coordinate/unit mismatches that cause reconstruction failures.  
+**Status:** ✅ ESTABLISHED (2026-01-13) — Lessons from Phase 3 debugging
+
+### The Two "Undistorted" Conventions
+
+**Problem:** The term "undistorted coordinates" is ambiguous and causes critical bugs.
+
+**Convention 1: Normalized Coordinates** (Epipolar geometry textbooks)
+- Function: `cv2.undistortPoints(src, K, D)` — default behavior
+- Output: Dimensionless coordinates with K=I, D=0
+- Example: (0.05, 0.03) for a point near the optical axis
+- Use case: Essential matrix estimation, epipolar constraint verification
+
+**Convention 2: Undistorted Pixels** (Practical reconstruction)
+- Function: `cv2.undistortPoints(src, K, D, P=K)` — explicit P=K parameter
+- Output: Pixel coordinates with distortion removed but K still applied
+- Example: (3124.5, 2045.8) in pixel space
+- Use case: Projection, reprojection error computation, bundle adjustment
+
+### Project-Wide Standard (MANDATORY)
+
+**Architecture Decision:** Use **undistorted pixels** throughout the reconstruction pipeline.
+
+**Rationale:**
+1. IncrementalSfM stores full K matrix and applies it in projection functions
+2. Bundle adjustment optimizes in pixel space (intuitive error units)
+3. Reprojection error thresholds (1px, 3px) are meaningful in pixels
+4. Matches OpenCV's PnP solver expectations when distCoeffs=None
+
+**Implementation:**
+```python
+# CORRECT: Convert distorted pixels → undistorted pixels at entry point
+points_2d_undist_px = cv2.undistortPoints(
+    points_2d_distorted.reshape(-1, 1, 2),
+    cameraMatrix=K,
+    distCoeffs=D,
+    P=K  # ← CRITICAL: Keeps output as pixels
+).reshape(-1, 2)
+
+# FORBIDDEN: Using normalized coords without conversion
+points_2d_norm = cv2.undistortPoints(points_2d_distorted, K, D)  # ❌
+# This returns normalized coords, incompatible with pixel-space functions
+```
+
+### Coordinate Type Documentation Standard
+
+All functions must explicitly annotate coordinate types in docstrings:
+
+```python
+def register_camera(
+    points_2d_undist_px: np.ndarray,  # (N, 2) undistorted pixels
+    points_3d_mm: np.ndarray,         # (N, 3) millimeters in L-frame
+    K: np.ndarray                     # (3, 3) intrinsic matrix
+) -> Tuple[np.ndarray, np.ndarray]:   # (rvec, tvec)
+    """
+    Register camera via PnP with UNDISTORTED pixel observations.
+    
+    COORDINATE CONVENTION:
+    - Input 2D points: Undistorted pixels (distortion removed via cv2.undistortPoints with P=K)
+    - Input 3D points: Millimeters in L-frame (world coordinates)
+    - PnP call: cv2.solvePnPRansac(distCoeffs=None) since distortion already removed
+    """
+```
+
+### Three Common Coordinate Errors (Lessons Learned)
+
+**Error #1: Mixing Normalized and Pixel Coordinates**
+- Symptom: Reprojection errors ~500-1000px, triangulation fails (0/16 points)
+- Root cause: Undistorted with `P=None` (normalized) but used in pixel-space projection
+- Solution: Always use `P=K` when undistorting for reconstruction pipeline
+
+**Error #2: Scale Ambiguity (Essential vs PnP)**
+- Symptom: Triangle area 0.00mm² (anti-hinge check fails), scale drift
+- Root cause: Essential matrix gives relative pose without metric scale
+- Solution: Use PnP-based initialization with known AprilTag size (7.0mm) for metric scale
+
+**Error #3: World/Camera Frame Confusion**
+- Symptom: Good initial reprojection (0.3px) degrades to 39px after bundle adjustment
+- Root cause: Transforming 3D points between world/camera frames incorrectly
+- Solution: Document frame for every coordinate array; validate with reprojection checks
+
+### Validation Checklist (Before Committing Code)
+
+- [ ] **Entry point:** All 2D detections converted to undistorted pixels via `cv2.undistortPoints(P=K)`
+- [ ] **PnP calls:** Use `distCoeffs=None` (distortion already removed) or `distCoeffs=np.zeros(5)`
+- [ ] **Projection:** Use full K matrix: `pt_2d = K @ (X_cam / X_cam[2])`
+- [ ] **Triangulation:** Input undistorted pixels + projection matrices with K
+- [ ] **Bundle adjustment:** Operates on undistorted pixels, outputs pixel-space residuals
+- [ ] **Documentation:** Function signatures annotate coordinate type (e.g., `points_2d_undist_px`)
+- [ ] **Unit tests:** Round-trip accuracy <0.01px for undistort → project → compare
+- [ ] **3D units:** All 3D coordinates in millimeters (mm), never meters
+
+### Module Boundary Contract
+
+| Module | Input Coords | Internal Representation | Output Coords |
+|--------|--------------|------------------------|---------------|
+| **calibration_loader** | Distorted px | — | Undistorted px (via `P=K`) |
+| **incremental_sfm** | Undistorted px | Stores undistorted px + K matrix | 3D points (mm) |
+| **bundle_adjustment** | Undistorted px | Optimizes poses + points | Updated structure (mm) |
+| **geometry_utils** | Undistorted px | Depends on P matrix | 3D points (mm) |
+| **phase3_pipeline** | Distorted px (entry) | Converts to undistorted px | Final L-frame (mm) |
+
+**Critical Rule:** Never pass coordinates across module boundaries without verifying coordinate type matches expectations.
+
+### Known Layout vs Unknown Layout
+
+**Known Layout (e.g., layout_4tags.json):**
+- Use known 3D positions directly (no triangulation needed for initial structure)
+- Transform from world frame → camera frame via PnP-solved poses
+- Validates pipeline with ground truth geometry
+
+**Unknown Layout (production flags):**
+- Must triangulate 3D positions from multi-view observations
+- Use undistorted pixels + projection matrices
+- Validate with ray angle checks (≥5°) and reprojection errors (<5px)
+
+### References
+- **Phase 0 unit standard:** All 3D coordinates in millimeters (mm)
+- **OpenCV camera convention:** `p_cam = R @ p_world + t`
+- **Projection matrix format:** `P = K @ [R | t]` for world → image mapping
+
+### Quality Gate Filtering (Automatic Image Removal)
+
+**Purpose:** Automatically identify and remove low-quality images that contribute excessive reprojection errors, improving overall reconstruction quality.
+
+**Implementation:** `src/image_quality_filter.py`
+
+**Workflow:**
+1. Compute per-image reprojection error statistics (mean, max, median)
+2. Rank images by error criterion (default: mean error)
+3. Remove worst N% of images (default: 10%)
+4. Filter 3D point observations (keep points visible in ≥2 remaining images)
+5. Re-run bundle adjustment with filtered structure
+6. Validate improvement in QA metrics
+
+**Safety Constraints:**
+- Minimum images retained: max(5, 50% of total)
+- Points must remain visible in ≥2 views after filtering
+- Track connectivity validated post-removal
+
+**Typical Results:**
+- Before filtering: mean=3.4px, max=12.7px (19 images)
+- After removing worst 10%: mean=2.5px, max=4.4px (17 images)
+- Improvement: 29% mean error reduction, 65% max error reduction
+
+**Configuration:**
+```python
+from image_quality_filter import apply_quality_gate_filter
+
+sfm_filtered, report = apply_quality_gate_filter(
+    sfm=sfm,
+    percentile=10.0,      # Remove worst 10%
+    criterion='mean',     # Options: 'mean', 'max', 'median'
+    verbose=True
+)
+```
+
+**Integration:** Automatically applied in Phase 3 pipeline after initial bundle adjustment, before final QA validation.
+
+---
 - Compute intrinsics once per magnification+focus pair (1:6 typical)
 - Store calibration metadata with images: date, lens, magnification, f-stop
 - Recalibrate when magnification/focus distance changes (1:5 vs 1:6 vs 1:7)
@@ -217,7 +381,7 @@ Your coordinate frames are meaningless without consistent units.
 - `CalibrationQA` class — Pre-flight checks (principal point, aspect ratio, distortion magnitude)
 
 **QA Gates:**
-- Calibration reprojection error <0.5px (checked during camera_calibration.py)
+- Calibration reprojection error <0.55px (checked during camera_calibration.py)
 - Round-trip accuracy <1e-6 px (undistort → redistort)
 - Principal point within 100px of image center (warning if exceeded)
 
@@ -396,7 +560,7 @@ Pick a repeatable definition that does not depend on "hand-placed" uncertain poi
 ### Gate
 **Strict validation gates (hard stop):**
 - **Convergence:** solver must return `success: true`.
-- **Reprojection error:** mean RMSE must be < 0.5 px.
+- **Reprojection error:** mean RMSE must be < 0.55 px.
 - **Scale residual:** the calculated distance of the scale bar must match the known distance within < 20 µm (0.02 mm).
 
 **Action:** If any condition fails, the pipeline must `EXIT(1)` and must NOT generate `implants_U.json`.

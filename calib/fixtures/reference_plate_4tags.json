@@ -1,58 +1,47 @@
 {
-  "frame": "U",
-  "units": "mm",
-  "description": "Reference plate with 4 AprilTags (IDs 1-4) defining canonical U-frame",
-  "tag_size_mm": 8.8,
+  "description": "Reference plate with 4 AprilTags for Phase 4 U-frame definition (Option U2)",
+  "version": "1.0",
   "tag_family": "tag36h11",
-  "points": {
-    "1_TL": [0.0, 0.0, 0.0],
-    "1_TR": [8.8, 0.0, 0.0],
-    "1_BR": [8.8, -8.8, 0.0],
-    "1_BL": [0.0, -8.8, 0.0],
-    
-    "2_TL": [15.0, 0.0, 0.0],
-    "2_TR": [23.8, 0.0, 0.0],
-    "2_BR": [23.8, -8.8, 0.0],
-    "2_BL": [15.0, -8.8, 0.0],
-    
-    "3_TL": [0.0, -15.0, 0.0],
-    "3_TR": [8.8, -15.0, 0.0],
-    "3_BR": [8.8, -23.8, 0.0],
-    "3_BL": [0.0, -23.8, 0.0],
-    
-    "4_TL": [15.0, -15.0, 0.0],
-    "4_TR": [23.8, -15.0, 0.0],
-    "4_BR": [23.8, -23.8, 0.0],
-    "4_BL": [15.0, -23.8, 0.0]
-  },
-  "layout": {
-    "pattern": "2x2 grid",
-    "tag_spacing_x_mm": 6.2,
-    "tag_spacing_y_mm": 6.2,
-    "tag_ids": [1, 2, 3, 4],
-    "origin": "Tag 1 top-left corner defines U-frame origin (0, 0, 0)",
-    "axes": {
-      "x": "Right (along Tag 1 top edge)",
-      "y": "Down (along Tag 1 left edge)",
-      "z": "Out of plane (right-hand rule)"
+  "tag_size_mm": 7.0,
+  "tag_edge_to_edge_mm": 8.8,
+  "note": "Tag centers define reference plate coordinate system. This provides metrology-grade U-frame with scale sanity check.",
+  
+  "tags": {
+    "1": {
+      "center_mm": [0.0, 0.0, 0.0],
+      "description": "Tag 1 - Origin reference"
+    },
+    "2": {
+      "center_mm": [60.0, 0.0, 0.0],
+      "description": "Tag 2 - +X direction"
+    },
+    "3": {
+      "center_mm": [0.0, 40.0, 0.0],
+      "description": "Tag 3 - +Y direction"
+    },
+    "4": {
+      "center_mm": [60.0, 40.0, 0.0],
+      "description": "Tag 4 - Diagonal reference"
     }
   },
-  "corner_labels": {
-    "TL": "Top-Left (first corner in OpenCV AprilTag detector output)",
-    "TR": "Top-Right",
-    "BR": "Bottom-Right",
-    "BL": "Bottom-Left"
+  
+  "u_frame_definition": {
+    "origin": "Centroid of tag centers",
+    "x_axis": "Direction from Tag 1 to Tag 2 (left to right)",
+    "y_axis": "Direction from Tag 1 to Tag 3 (bottom to top)",
+    "z_axis": "Normal to plate (right-hand rule: X × Y)",
+    "units": "millimeters"
   },
-  "metadata": {
-    "version": "1.0",
-    "last_updated": "2026-01-13",
-    "manufacturing_tolerance_mm": 0.05,
-    "measurement_method": "CMM verified",
-    "notes": [
-      "All coordinates in millimeters (mm)",
-      "Planar reference (all Z = 0)",
-      "Tag IDs 1-4 reserved for reference plate only",
-      "Implant cap tags use IDs 5 and above"
-    ]
-  }
+  
+  "validation_distances_mm": {
+    "tag1_to_tag2": 60.0,
+    "tag1_to_tag3": 40.0,
+    "tag2_to_tag4": 40.0,
+    "tag3_to_tag4": 60.0,
+    "tag1_to_tag4": 72.11102550927978,
+    "tag2_to_tag3": 72.11102550927978
+  },
+  
+  "scale_tolerance_mm": 0.02,
+  "note_validation": "Scale sanity check: computed distances must match validation_distances within ±0.02mm (20 µm)"
 }

@@ -1,0 +1,65 @@
+{
+  "pipeline_version": "phase3_clean_v1",
+  "timestamp": "2026-01-13T19:56:04.852178",
+  "images": {
+    "total": 19,
+    "with_detections": 19,
+    "registered": 19,
+    "after_quality_gate": 17
+  },
+  "structure": {
+    "n_cameras": 17,
+    "n_points_3d": 16,
+    "n_tracks": 16
+  },
+  "initialization": {
+    "method": "known_layout_pnp",
+    "img_id1": "DSC_0276",
+    "img_id2": "DSC_0281",
+    "n_points": 16,
+    "baseline_mm": 43.1037360118622,
+    "reproj_error_px": {
+      "view1": 1.6826608180999756,
+      "view2": 0.7105529308319092
+    }
+  },
+  "quality_gate": {
+    "status": "success",
+    "filter_config": {
+      "percentile": 10.0,
+      "criterion": "mean"
+    },
+    "before": {
+      "n_images": 19,
+      "mean_error_px": 3.4417500564128125,
+      "max_error_px": 12.744387006828779
+    },
+    "after": {
+      "n_images": 17,
+      "mean_error_px": 2.429514715899221,
+      "max_error_px": 9.866374579206521
+    },
+    "removed": {
+      "n_images_removed": 2,
+      "n_cameras_before": 19,
+      "n_cameras_after": 17,
+      "n_points_before": 16,
+      "n_points_after": 16,
+      "n_points_removed": 0,
+      "removed_images": [
+        "DSC_0284",
+        "DSC_0288"
+      ],
+      "removed_points": []
+    }
+  },
+  "qa_status": "FAIL",
+  "qa_hard_failures": [
+    "Reprojection Errors"
+  ],
+  "qa_warnings": [],
+  "qa_summary": {
+    "reprojection_mean_px": 2.4612162411735596,
+    "reprojection_max_px": 4.419804599504024
+  }
+}

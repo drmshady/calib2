@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/cap_model.schema.json",
+  "title": "AOX Flag/Cap Model (AprilTag + 7-dot constellations + temp abutment mount)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_id",
+    "units",
+    "cap",
+    "features",
+    "mounting"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "model_id": {
+      "type": "string"
+    },
+    "units": {
+      "type": "string",
+      "enum": [
+        "mm"
+      ]
+    },
+    "coordinate_frame": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "cap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outer_size_mm"
+      ],
+      "properties": {
+        "outer_size_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "y": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "z": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "april_tag",
+        "faces"
+      ],
+      "properties": {
+        "april_tag": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "faces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "mounting": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

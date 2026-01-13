@@ -119,7 +119,7 @@ def generate_tag_sheet(
     # Each cell: tag + label underneath
     label_height_px = int(5 * mm_to_inch * dpi)  # 5mm height for label
     cell_width = tag_size_px + spacing_px
-    cell_height = tag_size_px + label_height_px + spacing_px
+    cell_height = tag_size_px + spacing_px  # Equal spacing vertically and horizontally
     
     sheet_width = cols * cell_width + spacing_px
     sheet_height = rows * cell_height + spacing_px
@@ -138,15 +138,15 @@ def generate_tag_sheet(
         # Place tag
         sheet[y:y+tag_size_px, x:x+tag_size_px] = tag_img
         
-        # Add label (ID number)
+        # Add label (ID number) - placed below tag within the same spacing
         label = f"ID {tag_id}"
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
+        font_scale = 0.4
         thickness = 1
         text_size = cv2.getTextSize(label, font, font_scale, thickness)[0]
         
         text_x = x + (tag_size_px - text_size[0]) // 2
-        text_y = y + tag_size_px + int(label_height_px * 0.7)
+        text_y = y + tag_size_px + int(spacing_px * 0.5)
         
         cv2.putText(sheet, label, (text_x, text_y), font, font_scale, 0, thickness, cv2.LINE_AA)
     

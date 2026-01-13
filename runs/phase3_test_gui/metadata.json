@@ -1,0 +1,25 @@
+{
+  "pipeline": "Phase 3: Multi-View Reconstruction",
+  "timestamp": "2026-01-13T20:15:30.518973",
+  "n_images": 19,
+  "n_cameras_registered": 19,
+  "n_points_3d": 16,
+  "n_tracks": 16,
+  "calibration_file": "calib/1_10/camera_intrinsics.json",
+  "layout_file": "calib/fixtures/layout_4tags.json",
+  "tag_size_mm": 7.0,
+  "ba_info": {
+    "success": true,
+    "message": "`ftol` termination condition is satisfied.",
+    "initial_cost": 36.33958166499018,
+    "final_cost": 4.734682879602195,
+    "cost_reduction": 31.60489878538798,
+    "n_iterations": 24,
+    "n_cameras": 19,
+    "n_points": 16,
+    "n_observations": 300,
+    "optimality": 281164.1088418731,
+    "status": 2
+  },
+  "qa_passed": false
+}

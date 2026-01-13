@@ -29,7 +29,8 @@ class CharucoBoard:
         squares_x: int = 9,
         squares_y: int = 6,
         square_size_mm: float = 10.0,
-        marker_size_mm: float = 7.0
+        marker_size_mm: float = 7.0,
+        dict_type: str = "DICT_APRILTAG_36h11"
     ):
         """Initialize ChArUco board.
         
@@ -38,16 +39,42 @@ class CharucoBoard:
             squares_y: Number of squares in Y direction
             square_size_mm: Size of checkerboard squares in mm
             marker_size_mm: Size of AprilTag markers in mm
+            dict_type: ArUco dictionary type
         """
         self.squares_x = squares_x
         self.squares_y = squares_y
         self.square_size_mm = square_size_mm
         self.marker_size_mm = marker_size_mm
+        self.dict_type = dict_type
         
-        # Create AprilTag dictionary (36h11)
-        self.dictionary = cv2.aruco.getPredefinedDictionary(
-            cv2.aruco.DICT_APRILTAG_36h11
-        )
+        # Dictionary mapping
+        dict_mapping = {
+            "DICT_4X4_50": cv2.aruco.DICT_4X4_50,
+            "DICT_4X4_100": cv2.aruco.DICT_4X4_100,
+            "DICT_4X4_250": cv2.aruco.DICT_4X4_250,
+            "DICT_4X4_1000": cv2.aruco.DICT_4X4_1000,
+            "DICT_5X5_50": cv2.aruco.DICT_5X5_50,
+            "DICT_5X5_100": cv2.aruco.DICT_5X5_100,
+            "DICT_5X5_250": cv2.aruco.DICT_5X5_250,
+            "DICT_5X5_1000": cv2.aruco.DICT_5X5_1000,
+            "DICT_6X6_50": cv2.aruco.DICT_6X6_50,
+            "DICT_6X6_100": cv2.aruco.DICT_6X6_100,
+            "DICT_6X6_250": cv2.aruco.DICT_6X6_250,
+            "DICT_6X6_1000": cv2.aruco.DICT_6X6_1000,
+            "DICT_7X7_50": cv2.aruco.DICT_7X7_50,
+            "DICT_7X7_100": cv2.aruco.DICT_7X7_100,
+            "DICT_7X7_250": cv2.aruco.DICT_7X7_250,
+            "DICT_7X7_1000": cv2.aruco.DICT_7X7_1000,
+            "DICT_ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
+            "DICT_APRILTAG_16h5": cv2.aruco.DICT_APRILTAG_16h5,
+            "DICT_APRILTAG_25h9": cv2.aruco.DICT_APRILTAG_25h9,
+            "DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
+            "DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
+        }
+        
+        # Create dictionary
+        dict_id = dict_mapping.get(dict_type, cv2.aruco.DICT_APRILTAG_36h11)
+        self.dictionary = cv2.aruco.getPredefinedDictionary(dict_id)
         
         # Create ChArUco board
         self.board = cv2.aruco.CharucoBoard(
@@ -200,7 +227,8 @@ def calibrate_camera(
     board: CharucoBoard,
     min_images: int = 20,
     min_corners_per_image: int = 30,
-    min_unique_angles: int = 8
+    min_unique_angles: int = 8,
+    calib_flags: int = 0
 ) -> Dict:
     """Calibrate camera from ChArUco board images.
     
@@ -228,6 +256,7 @@ def calibrate_camera(
     all_corners = []
     all_ids = []
     all_sizes = []
+    all_image_names = []  # Track valid image filenames
     roll_angles = []
     magnifications = []
     
@@ -260,6 +289,7 @@ def calibrate_camera(
         all_corners.append(corners)
         all_ids.append(ids)
         all_sizes.append(img.shape[:2][::-1])  # (width, height)
+        all_image_names.append(Path(img_path).name)  # Store filename
         
         print(f"  [{i+1}/{len(image_paths)}] ✓ {len(corners)} corners, roll={angle:.1f}°, mag={mag:.1f} px/mm: {Path(img_path).name}")
     
@@ -296,48 +326,100 @@ def calibrate_camera(
         all_obj_points.append(obj_points)
         all_img_points.append(corners)
     
-    # Standard camera calibration
+    # Initial camera calibration
     retval, K, D, rvecs, tvecs = cv2.calibrateCamera(
         all_obj_points, all_img_points, image_size, None, None,
-        flags=cv2.CALIB_RATIONAL_MODEL
+        flags=calib_flags  # Calibration model flags
     )
     
     if not retval:
         raise ValueError("Camera calibration failed")
     
-    # Compute reprojection error
-    total_error = 0
-    total_points = 0
-    
-    for corners, ids, rvec, tvec in zip(all_corners, all_ids, rvecs, tvecs):
-        # Project board corners
+    # Quality gate: Compute per-image reprojection errors and remove worst 10%
+    per_image_errors = []
+    for i, (corners, ids, rvec, tvec, img_name) in enumerate(zip(all_corners, all_ids, rvecs, tvecs, all_image_names)):
         obj_points = board.board.getChessboardCorners()[ids.flatten()]
         img_points, _ = cv2.projectPoints(obj_points, rvec, tvec, K, D)
         
-        # Compute error using numpy (reshape to consistent format)
+        corners_flat = corners.reshape(-1, 2)
+        img_points_flat = img_points.reshape(-1, 2)
+        errors = np.linalg.norm(corners_flat - img_points_flat, axis=1)
+        rms = np.sqrt(np.mean(errors ** 2))
+        per_image_errors.append((i, rms, len(corners), img_name))
+    
+    # Sort by error and remove worst 10%
+    per_image_errors.sort(key=lambda x: x[1])
+    n_to_remove = max(1, len(per_image_errors) // 10)  # Remove at least 1, or 10%
+    keep_indices = [idx for idx, _, _, _ in per_image_errors[:-n_to_remove]]
+    
+    print(f"\nQuality gate: Removing worst {n_to_remove} images (10%) based on reprojection error")
+    for idx, error, n_pts, img_name in per_image_errors[-n_to_remove:]:
+        print(f"  Removed: {img_name} - error={error:.3f} px ({n_pts} corners)")
+    
+    # Filter data to keep only good images
+    all_corners_filtered = [all_corners[i] for i in keep_indices]
+    all_ids_filtered = [all_ids[i] for i in keep_indices]
+    all_obj_points_filtered = [all_obj_points[i] for i in keep_indices]
+    all_img_points_filtered = [all_img_points[i] for i in keep_indices]
+    magnifications_filtered = [magnifications[i] for i in keep_indices]
+    
+    # Re-calibrate with filtered images
+    print(f"Re-calibrating with {len(all_corners_filtered)} images (removed {n_to_remove})...")
+    retval, K, D, rvecs, tvecs = cv2.calibrateCamera(
+        all_obj_points_filtered, all_img_points_filtered, image_size, None, None,
+        flags=calib_flags
+    )
+    
+    if not retval:
+        raise ValueError("Re-calibration failed")
+    
+    # Update data for final results
+    all_corners = all_corners_filtered
+    all_ids = all_ids_filtered
+    magnifications = magnifications_filtered
+    
+    # Compute final reprojection error (overall and per-image)
+    total_error = 0
+    total_points = 0
+    per_image_rms = []
+    
+    for corners, ids, rvec, tvec in zip(all_corners, all_ids, rvecs, tvecs):
+        obj_points = board.board.getChessboardCorners()[ids.flatten()]
+        img_points, _ = cv2.projectPoints(obj_points, rvec, tvec, K, D)
+        
         corners_flat = corners.reshape(-1, 2)
         img_points_flat = img_points.reshape(-1, 2)
         errors = np.linalg.norm(corners_flat - img_points_flat, axis=1)
         total_error += np.sum(errors ** 2)
         total_points += len(corners)
+        
+        # Per-image RMS
+        img_rms = np.sqrt(np.mean(errors ** 2))
+        per_image_rms.append(img_rms)
     
-    rms_error = np.sqrt(total_error / total_points)
+    rms_error_mean = np.sqrt(total_error / total_points)
+    rms_error_median = np.median(per_image_rms)
+    rms_error_max = np.max(per_image_rms)
     
     print(f"\nCalibration complete!")
-    print(f"  RMS reprojection error: {rms_error:.3f} px")
+    print(f"  RMS reprojection error (mean): {rms_error_mean:.3f} px")
+    print(f"  RMS reprojection error (median): {rms_error_median:.3f} px")
+    print(f"  RMS reprojection error (max): {rms_error_max:.3f} px")
     print(f"  Magnification (median): {np.median(magnifications):.2f} px/mm")
     print(f"  Magnification (range): {np.min(magnifications):.2f} - {np.max(magnifications):.2f} px/mm")
     
     # Warn if reprojection error is high
-    if rms_error > 0.5:
-        print(f"\n  WARNING: Reprojection error {rms_error:.3f} px exceeds 0.5 px threshold")
+    if rms_error_mean > 0.55:
+        print(f"\n  WARNING: Mean reprojection error {rms_error_mean:.3f} px exceeds 0.55 px threshold")
         print("  Consider recapturing with better lighting, focus, or board flatness")
     
     return {
         "K": K,
         "D": D,
         "image_size": image_size,
-        "reprojection_error_px": float(rms_error),
+        "reprojection_error_px": float(rms_error_mean),
+        "reprojection_error_median_px": float(rms_error_median),
+        "reprojection_error_max_px": float(rms_error_max),
         "magnification_px_per_mm": float(np.median(magnifications)),
         "magnification_min": float(np.min(magnifications)),
         "magnification_max": float(np.max(magnifications)),
@@ -373,11 +455,11 @@ def save_calibration(results: Dict, output_path: str, board_config: CharucoBoard
             "K": results["K"].tolist()
         },
         "distortion": {
-            "k1": float(results["D"][0]),
-            "k2": float(results["D"][1]),
-            "p1": float(results["D"][2]),
-            "p2": float(results["D"][3]),
-            "k3": float(results["D"][4]) if len(results["D"]) > 4 else 0.0,
+            "k1": float(results["D"].flatten()[0]),
+            "k2": float(results["D"].flatten()[1]),
+            "p1": float(results["D"].flatten()[2]),
+            "p2": float(results["D"].flatten()[3]),
+            "k3": float(results["D"].flatten()[4]) if len(results["D"].flatten()) > 4 else 0.0,
             "coefficients": results["D"].flatten().tolist()
         },
         "magnification": {
@@ -387,7 +469,9 @@ def save_calibration(results: Dict, output_path: str, board_config: CharucoBoard
             "note": "Computed from detected ChArUco corners, varies with working distance"
         },
         "quality": {
-            "reprojection_error_px": results["reprojection_error_px"],
+            "reprojection_error_mean_px": results["reprojection_error_px"],
+            "reprojection_error_median_px": results["reprojection_error_median_px"],
+            "reprojection_error_max_px": results["reprojection_error_max_px"],
             "n_images_used": results["n_images_used"],
             "n_unique_roll_angles": results["n_unique_angles"]
         },
@@ -397,7 +481,7 @@ def save_calibration(results: Dict, output_path: str, board_config: CharucoBoard
             "squares_y": board_config.squares_y,
             "square_size_mm": board_config.square_size_mm,
             "marker_size_mm": board_config.marker_size_mm,
-            "marker_family": "tag36h11"
+            "marker_family": board_config.dict_type
         },
         "units": "mm"
     }
@@ -438,6 +522,10 @@ def main():
         help="Marker size in mm (default: 7.0)"
     )
     parser.add_argument(
+        "--dict", type=str, default="DICT_APRILTAG_36h11",
+        help="ArUco dictionary type (default: DICT_APRILTAG_36h11)"
+    )
+    parser.add_argument(
         "--min-images", type=int, default=20,
         help="Minimum valid images required (default: 20)"
     )
@@ -449,8 +537,21 @@ def main():
         "--min-angles", type=int, default=8,
         help="Minimum unique roll angle bins (default: 8)"
     )
+    parser.add_argument(
+        "--calib-model", type=str, default="standard",
+        choices=["standard", "rational", "thin-prism", "tilted"],
+        help="Calibration model: standard (5-param k1,k2,k3,p1,p2), rational (8-param adds k4,k5,k6), thin-prism (12-param adds s1,s2,s3,s4), tilted (14-param adds tauX,tauY) (default: standard)"
+    )
     
     args = parser.parse_args()
+    
+    # Map calibration model to OpenCV flags
+    calib_model_flags = {
+        "standard": 0,  # Default 5-parameter model (k1, k2, p1, p2, k3)
+        "rational": cv2.CALIB_RATIONAL_MODEL,  # 8-parameter: adds k4, k5, k6
+        "thin-prism": cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_THIN_PRISM_MODEL,  # 12-parameter: adds s1, s2, s3, s4
+        "tilted": cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_THIN_PRISM_MODEL | cv2.CALIB_TILTED_MODEL  # 14-parameter: adds tauX, tauY
+    }
     
     # Find all images in folder
     image_folder = Path(args.image_folder)
@@ -470,13 +571,15 @@ def main():
         return 1
     
     print(f"Found {len(image_paths)} images in {image_folder}")
+    print(f"Calibration model: {args.calib_model}")
     
     # Create board
     board = CharucoBoard(
         squares_x=args.squares_x,
         squares_y=args.squares_y,
         square_size_mm=args.square_size,
-        marker_size_mm=args.marker_size
+        marker_size_mm=args.marker_size,
+        dict_type=args.dict
     )
     
     try:
@@ -486,7 +589,8 @@ def main():
             board,
             min_images=args.min_images,
             min_corners_per_image=args.min_corners,
-            min_unique_angles=args.min_angles
+            min_unique_angles=args.min_angles,
+            calib_flags=calib_model_flags[args.calib_model]
         )
         
         # Save

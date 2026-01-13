@@ -1,0 +1,111 @@
+19:14:31 [INFO] ======================================================================
+19:14:31 [INFO] PHASE 3: MULTI-VIEW RECONSTRUCTION PIPELINE
+19:14:31 [INFO] ======================================================================
+19:14:31 [INFO] Images: 19
+19:14:31 [INFO] Calibration: calib/1_10/camera_intrinsics.json
+19:14:31 [INFO] Output: runs/fix_test
+19:14:31 [INFO] 
+[1/7] Loading camera calibration...
+19:14:31 [INFO]   Camera matrix K: fx=24568.1, fy=24612.2, cx=3208.5, cy=2146.3
+19:14:31 [INFO]   Image size: 6000 x 4000
+19:14:31 [INFO] 
+[2/7] Detecting AprilTags...
+19:14:31 [INFO]   DSC_0276: 4 tags detected
+19:14:32 [INFO]   DSC_0281: 4 tags detected
+19:14:32 [INFO]   DSC_0282: 4 tags detected
+19:14:32 [INFO]   DSC_0283: 4 tags detected
+19:14:32 [INFO]   DSC_0284: 4 tags detected
+19:14:33 [INFO]   DSC_0285: 4 tags detected
+19:14:33 [INFO]   DSC_0286: 4 tags detected
+19:14:33 [INFO]   DSC_0287: 4 tags detected
+19:14:33 [INFO]   DSC_0288: 4 tags detected
+19:14:34 [INFO]   DSC_0289: 4 tags detected
+19:14:34 [INFO]   DSC_0290: 4 tags detected
+19:14:34 [INFO]   DSC_0291: 4 tags detected
+19:14:34 [INFO]   DSC_0292: 4 tags detected
+19:14:35 [INFO]   DSC_0293: 4 tags detected
+19:14:35 [INFO]   DSC_0294: 4 tags detected
+19:14:35 [INFO]   DSC_0295: 4 tags detected
+19:14:35 [INFO]   DSC_0296: 4 tags detected
+19:14:35 [INFO]   DSC_0297: 4 tags detected
+19:14:36 [INFO]   DSC_0298: 4 tags detected
+19:14:36 [INFO] 
+[3/7] Building feature tracks...
+19:14:36 [INFO]   Total tracks: 16
+19:14:36 [INFO]   Tracks with >= 2 views: 16
+19:14:36 [INFO] 
+[4/7] SfM initialization (PnP-based)...
+19:14:36 [INFO]   Initializing with: DSC_0276 and DSC_0281
+19:14:36 [INFO]   Using AprilTag size: 7.00mm for metric scale
+19:14:36 [INFO]   [OK] Initialization SUCCESS (PnP-based)
+19:14:36 [INFO]      View 1 pose: t=[  27.77631287  -11.3446321  1065.60830761]
+19:14:36 [INFO]      View 2 pose: t=[ -42.18586107  -20.34700757 1103.74359825]
+19:14:36 [INFO]      Baseline: 80.19mm
+19:14:36 [INFO]   Triangulating 16 point correspondences...
+19:14:36 [INFO]      Triangulated points: 4/16 (25.0%)
+19:14:36 [INFO] 
+[5/7] Incremental reconstruction...
+19:14:36 [INFO]   Initial structure: 4 points, 2 cameras
+19:14:36 [INFO]   Attempting to register 17 additional cameras...
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0282: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0283: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0284: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0285: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0286: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0287: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0288: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0289: PnP RANSAC failed to find solution
+19:14:36 [INFO]     [OK] Registered DSC_0290: 4 correspondences
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0291: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0292: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0293: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0294: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0295: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0296: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0297: PnP RANSAC failed to find solution
+19:14:36 [WARNING]     [SKIP] Failed to register DSC_0298: PnP RANSAC failed to find solution
+19:14:36 [INFO]   Final structure: 4 points, 3 cameras
+19:14:36 [INFO] 
+[6/7] Global bundle adjustment...
+19:14:36 [INFO]   Before BA: mean=3204.889px, max=6389.359px
+19:14:36 [INFO]   \u2705 Bundle adjustment SUCCESS
+19:14:36 [INFO]      Initial cost: 29947454.370510
+19:14:36 [INFO]      Final cost: 50.074951
+19:14:36 [INFO]      Cost reduction: 29947404.295559
+19:14:36 [INFO]      Iterations: 12
+19:14:36 [INFO]   After BA: mean=39.099px, max=55.831px
+19:14:36 [INFO] 
+[7/7] Quality assurance validation...
+Traceback (most recent call last):
+  File "d:\new trial\test_reconstruction_fix.py", line 31, in <module>
+    sfm, metadata = phase3_test_pipeline.run_phase3_pipeline(
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        image_paths=image_paths,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        verbose=True
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "d:\new trial\tools\phase3_test_pipeline.py", line 584, in run_phase3_pipeline
+    print_qa_report(qa_report, verbose=True)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\new trial\src\reconstruction_qa.py", line 494, in print_qa_report
+    print(f"\n{prefix} [{status_str}] {check.name}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 2: character maps to <undefined>
+Found 19 images
+
+Running Phase 3 pipeline with PnP-based initialization...
+
+======================================================================
+PHASE 3 RECONSTRUCTION QUALITY ASSURANCE REPORT
+======================================================================
+
+======================================================================
+FAILED!
+======================================================================
+Error: 'charmap' codec can't encode character '\u274c' in position 2: character maps to <undefined>

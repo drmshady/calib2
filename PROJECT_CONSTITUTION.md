@@ -64,10 +64,59 @@ Format:
    [r31, r32, r33, tz],
    [  0,   0,   0,  1]]`
 
+### Coordinate System Convention (Mandatory)
+**Standard:** Use **undistorted pixels** throughout reconstruction pipeline.
+
+**Definition:**
+- Undistorted pixels = distortion removed, K still applied
+- Generated via: `cv2.undistortPoints(src, K, D, P=K)`
+- Output format: Pixel coordinates (not normalized)
+
+**Three Forbidden Patterns:**
+
+1. **Mixing normalized/pixel coords without explicit conversion:**
+   ```python
+   # ❌ FORBIDDEN: Returns normalized coords
+   pts_norm = cv2.undistortPoints(src, K, D)
+   
+   # ✅ REQUIRED: Returns undistorted pixels
+   pts_undist_px = cv2.undistortPoints(src, K, D, P=K)
+   ```
+
+2. **Passing distorted coords to triangulation/bundle adjustment:**
+   ```python
+   # ❌ FORBIDDEN: Raw detections have distortion
+   triangulate(pts_distorted, P1, P2)
+   
+   # ✅ REQUIRED: Undistort first
+   pts_undist = cv2.undistortPoints(pts_distorted, K, D, P=K)
+   triangulate(pts_undist, P1, P2)
+   ```
+
+3. **Using meters instead of millimeters for 3D points:**
+   ```python
+   # ❌ FORBIDDEN: Scale ambiguity
+   point_3d_m = np.array([0.030, 0.015, 1.200])
+   
+   # ✅ REQUIRED: Millimeters only
+   point_3d_mm = np.array([30.0, 15.0, 1200.0])
+   ```
+
+**Required annotations in function signatures:**
+```python
+def register_camera(
+    points_2d_undist_px: np.ndarray,  # (N, 2) undistorted pixels
+    points_3d_mm: np.ndarray,         # (N, 3) millimeters
+    K: np.ndarray                     # (3, 3) intrinsic matrix
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Coordinate types explicitly documented."""
+```
+
 ### Fail-fast logic
 - If `rmse_px > threshold_px`: raise `ValueError` (do not proceed).
 - If `abs(det(R) - 1.0) > eps`: raise error (prevent reflection/scaling).
 - If solver returns `success: false`: **EXIT(1)**; no downstream exports.
+- If coordinate type ambiguous: raise `TypeError` with clarification.
 
 ---
 

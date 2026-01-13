@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.3.0",
+  "model_id": "AOX_FLAG_10x10x10_ID100_TAG8.8_DOT1_ANCH1.5",
+  "units": "mm",
+  "coordinate_frame": {
+    "description": "Origin at flag center. +X right, +Y front(tag), +Z top.",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "axes": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  },
+  "cap": {
+    "outer_size_mm": {
+      "x": 10.0,
+      "y": 10.0,
+      "z": 10.0
+    }
+  },
+  "features": {
+    "april_tag": {
+      "family": "AprilTag36h11",
+      "id": 100,
+      "edge_length_mm": 8.8,
+      "face": "front",
+      "corner_points_mm": [
+        [
+          -4.4,
+          5.0,
+          4.4
+        ],
+        [
+          4.4,
+          5.0,
+          4.4
+        ],
+        [
+          4.4,
+          5.0,
+          -4.4
+        ],
+        [
+          -4.4,
+          5.0,
+          -4.4
+        ]
+      ]
+    },
+    "faces": [
+      {
+        "name": "top_constellation_7",
+        "face": "top",
+        "type": "dot_constellation",
+        "dot_diameter_mm": 1.0,
+        "dot_diameters_mm": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "centers_mm": [
+          [
+            0.5,
+            2.85,
+            5.0
+          ],
+          [
+            2.7,
+            0.8,
+            5.0
+          ],
+          [
+            1.95,
+            -2.25,
+            5.0
+          ],
+          [
+            -1.85,
+            2.0,
+            5.0
+          ],
+          [
+            -2.95,
+            -0.6,
+            5.0
+          ],
+          [
+            -1.2,
+            -2.65,
+            5.0
+          ],
+          [
+            2.7,
+            2.9,
+            5.0
+          ]
+        ]
+      },
+      {
+        "name": "left_constellation_7",
+        "face": "left",
+        "type": "dot_constellation",
+        "dot_diameter_mm": 1.0,
+        "dot_diameters_mm": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "centers_mm": [
+          [
+            -5.0,
+            -3.0,
+            -1.0
+          ],
+          [
+            -5.0,
+            -2.1,
+            -3.0
+          ],
+          [
+            -5.0,
+            2.0,
+            -0.9
+          ],
+          [
+            -5.0,
+            3.7,
+            -2.4
+          ],
+          [
+            -5.0,
+            2.9,
+            3.1
+          ],
+          [
+            -5.0,
+            0.0,
+            3.5
+          ],
+          [
+            -5.0,
+            -2.0,
+            1.5
+          ]
+        ]
+      },
+      {
+        "name": "right_constellation_7",
+        "face": "right",
+        "type": "dot_constellation",
+        "dot_diameter_mm": 1.0,
+        "dot_diameters_mm": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "centers_mm": [
+          [
+            5.0,
+            -1.5,
+            -1.0
+          ],
+          [
+            5.0,
+            2.0,
+            -1.7
+          ],
+          [
+            5.0,
+            3.5,
+            -3.0
+          ],
+          [
+            5.0,
+            -3.0,
+            1.0
+          ],
+          [
+            5.0,
+            -2.5,
+            -3.5
+          ],
+          [
+            5.0,
+            -3.0,
+            3.8
+          ],
+          [
+            5.0,
+            3.0,
+            3.0
+          ]
+        ]
+      }
+    ]
+  },
+  "mounting": {
+    "type": "temporary_abutment",
+    "cemented": true,
+    "temp_abutment": {
+      "d_post_height_mm": 9.0,
+      "shoulder_height_mm": 3.0,
+      "engagement_depth_mm": 8.0,
+      "clearance_per_side_mm": 0.1
+    },
+    "z_reference": {
+      "z_stop_plane": "temp_abutment_top",
+      "mua_to_zstop_offset_mm": 12.0,
+      "relief_depth_mm": 0.2
+    },
+    "driver_access": {
+      "axis": "z",
+      "diameter_mm": 2.7,
+      "keepout_radius_mm": 2.0
+    }
+  },
+  "metadata": {
+    "generated_at": "2026-01-11T11:13:01"
+  }
+}
