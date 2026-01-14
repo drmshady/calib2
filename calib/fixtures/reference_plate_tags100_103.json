@@ -1,0 +1,71 @@
+{
+  "description": "Reference plate with 4 AprilTags (IDs 100-103) for Phase 4 U-frame definition - Unknown Layout",
+  "version": "1.0",
+  "tag_family": "tag36h11",
+  "tag_size_mm": 8.8,
+  "note": "Used with phase3_unknown_layout_pipeline.py. Tag 100 defines world origin. Corner IDs match track IDs (tag_id * 10 + corner_idx).",
+  
+  "frame": "U",
+  "units": "mm",
+  
+  "tags": {
+    "100": {
+      "center_mm": [0.0, 0.0, 0.0],
+      "description": "Tag 100 - World origin (defines Z=0 plane)"
+    },
+    "101": {
+      "center_mm": [0.0, -84.54, 0.0],
+      "description": "Tag 101 - Negative Y direction"
+    },
+    "102": {
+      "center_mm": [-21.71, 0.0, 0.0],
+      "description": "Tag 102 - Negative X direction"
+    },
+    "103": {
+      "center_mm": [-40.19, -25.31, 0.0],
+      "description": "Tag 103 - Diagonal reference"
+    }
+  },
+  
+  "points": {
+    "1000": [-4.4, 4.4, 0.0],
+    "1001": [4.4, 4.4, 0.0],
+    "1002": [4.4, -4.4, 0.0],
+    "1003": [-4.4, -4.4, 0.0],
+    
+    "1010": [-4.4, -80.14, 0.0],
+    "1011": [4.4, -80.14, 0.0],
+    "1012": [4.4, -88.94, 0.0],
+    "1013": [-4.4, -88.94, 0.0],
+    
+    "1020": [-26.11, 4.4, 0.0],
+    "1021": [-17.31, 4.4, 0.0],
+    "1022": [-17.31, -4.4, 0.0],
+    "1023": [-26.11, -4.4, 0.0],
+    
+    "1030": [-44.59, -20.91, 0.0],
+    "1031": [-35.79, -20.91, 0.0],
+    "1032": [-35.79, -29.71, 0.0],
+    "1033": [-44.59, -29.71, 0.0]
+  },
+  
+  "u_frame_definition": {
+    "origin": "Tag 100 center (0, 0, 0)",
+    "x_axis": "Right when viewing tags from front",
+    "y_axis": "Up when viewing tags from front",
+    "z_axis": "Normal to plate (away from camera, right-hand rule)",
+    "note": "This defines a consistent U-frame for unknown layout scenarios where tag positions are not pre-measured"
+  },
+  
+  "validation_distances_mm": {
+    "tag100_to_tag101": 84.54,
+    "tag100_to_tag102": 21.71,
+    "tag100_to_tag103": 38.19,
+    "tag101_to_tag102": 87.29,
+    "tag101_to_tag103": 68.27,
+    "tag102_to_tag103": 31.86
+  },
+  
+  "scale_tolerance_mm": 1.0,
+  "note_validation": "Scale sanity check: computed distances must match validation_distances within ±1.0mm for unknown layout scenarios"
+}

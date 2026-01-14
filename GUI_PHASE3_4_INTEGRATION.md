@@ -42,13 +42,21 @@ python tools/camera_calibration_gui.py
 
 - **☑ Enable Phase 4 (L→U Transform)**
   - Checkbox to enable user frame transformation
+  - **Only applicable when you have independent reference measurements**
   
 - **Method Selection:**
-  - ⚪ **Reference Plate (Option U2)** - Metrology-grade (recommended)
-  - ⚪ **Implant-based (Option U1)** - Uses implant geometry
+  - ⚪ **Reference Plate (Option U2)** - Requires physically measured geometry (calipers/CMM)
+  - ⚪ **Implant-based (Option U1)** - Uses IOS or treatment plan positions
 
-- **Reference Plate File**: Required for Option U2
-  - Example: `calib/fixtures/reference_plate_4tags.json`
+- **Reference Plate File**: Auto-selected based on layout mode
+  - Known layout: `reference_plate_4tags.json` (tags 1-4)
+  - Unknown layout: **Not recommended** - use L-frame output directly
+
+**Important for Unknown Layout:**
+- Phase 4 requires INDEPENDENT ground truth measurements
+- Cannot use reconstruction to define its own reference (circular logic)
+- **Recommended**: Leave Phase 4 unchecked, use `structure_L.json` as final output
+- L-frame already has metric scale and consistent coordinates
 
 ### Controls
 

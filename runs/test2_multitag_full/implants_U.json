@@ -1,0 +1,88 @@
+{
+  "frame": "U",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        -1.1145750988816872e-11,
+        2.362376960718393e-11,
+        -2.7282466800695947e-11
+      ],
+      "axis_vector": [
+        6.142014867555907e-12,
+        4.207509591276494e-12,
+        -1.0
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.0
+    },
+    "2": {
+      "centroid_mm": [
+        0.15048538408331724,
+        -55.99008791017493,
+        -63.345303054841324
+      ],
+      "axis_vector": [
+        -0.36872589337820766,
+        -0.8724471947220599,
+        -0.32074461487926914
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.0
+    },
+    "3": {
+      "centroid_mm": [
+        -14.795494396407642,
+        6.904137658575499,
+        14.305476141462258
+      ],
+      "axis_vector": [
+        -0.0022762514733932087,
+        -0.9427288936879281,
+        -0.3335521723586357
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.0
+    },
+    "4": {
+      "centroid_mm": [
+        -30.54500269844366,
+        -20.91394908815576,
+        -9.384395166072228
+      ],
+      "axis_vector": [
+        0.09326929823689771,
+        -0.9345196275660993,
+        -0.34347329401296345
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.0
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T23:17:19.047176",
+    "source": "photogrammetry",
+    "n_implants": 4,
+    "mean_reprojection_error_px": 0.0,
+    "reconstruction_run": "D:\\calib2\\runs\\test2_multitag_full",
+    "tag_size_mm": 8.8,
+    "validation_results": {
+      "100": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "101": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "102": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "103": {
+        "valid": true,
+        "message": "Valid geometry"
+      }
+    }
+  }
+}

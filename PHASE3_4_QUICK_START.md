@@ -14,17 +14,32 @@ python tools/phase3_test_pipeline.py \
     --tag-size 7.0
 ```
 
-### Production with Unknown Layout
+### Production with Unknown Layout (Recommended)
 
 ```bash
-# Full reconstruction with reference plate U-frame
+# Unknown layout reconstruction - L-frame output is final
+python tools/phase3_unknown_layout_pipeline.py \
+    --images "calib/test2/DSC_*.TIF" \
+    --calib "calib/test2/camera_intrinsics.json" \
+    --output "runs/unknown_reconstruction" \
+    --tag-size 8.8
+
+# Output: structure_L.json with metric scale (mm)
+# NO --phase4 FLAG - L-frame is your final deliverable
+```
+
+### Known Layout with Phase 4
+
+```bash
+# Only use Phase 4 when you have physically measured reference geometry
 python tools/phase3_test_pipeline.py \
     --images "data/case001/*.TIF" \
     --calib "calib/1_10/camera_intrinsics.json" \
     --output "runs/case001_reconstruction" \
+    --layout "calib/fixtures/layout_4tags.json" \
     --phase4 reference_plate \
     --reference-plate "calib/fixtures/reference_plate_4tags.json" \
-    --tag-size 8.8
+    --tag-size 7.0
 ```
 
 ## 📋 Command-Line Arguments

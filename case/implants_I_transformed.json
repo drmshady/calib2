@@ -1,0 +1,73 @@
+{
+  "frame": "I",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        -14.749911037382752,
+        11.427853727537403,
+        0.32209712287244496
+      ],
+      "axis_vector": [
+        0.7845538299472221,
+        0.21714954319659918,
+        -0.5807937360239466
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.0,
+      "source_frame": "U"
+    },
+    "2": {
+      "centroid_mm": [
+        69.56227588155322,
+        13.881877940477573,
+        6.0643015129586315
+      ],
+      "axis_vector": [
+        0.8081018863553772,
+        -0.4606359564035188,
+        0.36713193396529364
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.0,
+      "source_frame": "U"
+    },
+    "3": {
+      "centroid_mm": [
+        -29.56093714785348,
+        -4.3895244632283585,
+        -0.9680469008717949
+      ],
+      "axis_vector": [
+        0.8447283396149035,
+        -0.12244658421304017,
+        0.5209998716564211
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.0,
+      "source_frame": "U"
+    },
+    "4": {
+      "centroid_mm": [
+        6.951771295560251,
+        -19.964453952784154,
+        1.742425031051071
+      ],
+      "axis_vector": [
+        0.8430345730343975,
+        -0.027416333588506283,
+        0.5371601747349433
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.0,
+      "source_frame": "U"
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T22:47:35.383409",
+    "source": "photogrammetry_transformed",
+    "n_implants": 4,
+    "transform_applied": "T_I_from_U",
+    "original_source": "D:\\calib2\\runs\\test2_multitag_full\\implants_U.json"
+  }
+}

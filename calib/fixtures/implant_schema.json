@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Implant Position Schema",
+  "description": "Schema for implant centroid and axis positions in photogrammetry pipeline (U-frame or I-frame)",
+  "type": "object",
+  "required": ["frame", "units", "implants", "metadata"],
+  "properties": {
+    "frame": {
+      "type": "string",
+      "enum": ["U", "I"],
+      "description": "Coordinate frame: U (User/photogrammetry) or I (IOS/exocad)"
+    },
+    "units": {
+      "type": "string",
+      "const": "mm",
+      "description": "All coordinates MUST be in millimeters"
+    },
+    "implants": {
+      "type": "object",
+      "description": "Implant positions keyed by implant ID",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "object",
+          "required": ["centroid_mm", "axis_vector", "marker_id"],
+          "properties": {
+            "centroid_mm": {
+              "type": "array",
+              "description": "Implant centroid position [x, y, z] in mm",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "axis_vector": {
+              "type": "array",
+              "description": "Unit normal vector [nx, ny, nz] pointing along implant axis",
+              "items": {
+                "type": "number",
+                "minimum": -1.0,
+                "maximum": 1.0
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "marker_id": {
+              "type": "integer",
+              "description": "AprilTag ID on marker cap (e.g., 100-104)"
+            },
+            "quality_score": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Optional quality metric (0-1, higher is better)"
+            },
+            "reprojection_error_px": {
+              "type": "number",
+              "minimum": 0.0,
+              "description": "Mean reprojection error for this implant's features (pixels)"
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["timestamp", "source"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of generation"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source of data (e.g., 'photogrammetry', 'exocad_scan_body_fit')"
+        },
+        "n_implants": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total number of implants"
+        },
+        "mean_reprojection_error_px": {
+          "type": "number",
+          "minimum": 0.0,
+          "description": "Overall mean reprojection error across all implants"
+        },
+        "reconstruction_run": {
+          "type": "string",
+          "description": "Path to reconstruction output directory"
+        }
+      }
+    }
+  }
+}

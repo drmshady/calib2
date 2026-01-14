@@ -1,0 +1,14 @@
+{
+  "package_name": "demo_phase6",
+  "timestamp": "2026-01-14T22:00:22.790812",
+  "source_run_dir": "D:\\calib2\\test\\fixtures\\phase6_test",
+  "ios_mesh_source": null,
+  "files": [
+    "T_I_from_U.json",
+    "implants_U.json",
+    "implants_I.json",
+    "U_Constellation.stl"
+  ],
+  "alignment_rmse_mm": 28.116631430713944,
+  "n_implants": 4
+}

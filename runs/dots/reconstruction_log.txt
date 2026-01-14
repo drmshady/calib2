@@ -1,0 +1,15 @@
+================================================================================
+PHASE 3/4 RECONSTRUCTION LOG
+================================================================================
+Generated: 2026-01-15 01:22:27
+Output Directory: D:\calib2\runs\dots
+Layout Mode: UNKNOWN
+Tag Size: 8.8 mm
+Phase 4: DISABLED
+================================================================================
+
+Found 52 images
+Layout mode: UNKNOWN
+
+
+✅ Reconstruction completed successfully!

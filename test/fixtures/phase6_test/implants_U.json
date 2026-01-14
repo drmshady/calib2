@@ -1,0 +1,88 @@
+{
+  "frame": "U",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        4.4,
+        4.4,
+        0.0
+      ],
+      "axis_vector": [
+        0.0,
+        -0.0,
+        1.0
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.49
+    },
+    "2": {
+      "centroid_mm": [
+        4.4,
+        -80.14,
+        0.0
+      ],
+      "axis_vector": [
+        0.0,
+        -0.0,
+        1.0
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.5225
+    },
+    "3": {
+      "centroid_mm": [
+        -17.310000000000002,
+        4.4,
+        0.0
+      ],
+      "axis_vector": [
+        0.0,
+        -0.0,
+        1.0
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.5475
+    },
+    "4": {
+      "centroid_mm": [
+        -35.79,
+        -20.91,
+        0.0
+      ],
+      "axis_vector": [
+        0.0,
+        -0.0,
+        1.0
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.5725
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T21:59:06.953177",
+    "source": "photogrammetry",
+    "n_implants": 4,
+    "mean_reprojection_error_px": 0.5331250000000001,
+    "reconstruction_run": "D:\\calib2\\test\\fixtures\\phase6_test",
+    "tag_size_mm": 8.8,
+    "validation_results": {
+      "100": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "101": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "102": {
+        "valid": true,
+        "message": "Valid geometry"
+      },
+      "103": {
+        "valid": true,
+        "message": "Valid geometry"
+      }
+    }
+  }
+}

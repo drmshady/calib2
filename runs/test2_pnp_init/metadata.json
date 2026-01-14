@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-01-14T16:20:56.421106",
+  "images_total": 8,
+  "images_registered": 1,
+  "points_3d": 4,
+  "tag_size_mm": 8.8,
+  "qa_passed": true,
+  "ba_result": {
+    "success": false,
+    "message": "Need >= 2 cameras"
+  }
+}

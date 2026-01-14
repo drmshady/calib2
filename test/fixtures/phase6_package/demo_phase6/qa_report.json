@@ -1,0 +1,39 @@
+{
+  "phase": "Phase 6 - IOS Integration",
+  "timestamp": "2026-01-14T22:00:22.790812",
+  "alignment": {
+    "n_correspondences": 4,
+    "rmse_mm": 28.116631430713944,
+    "max_residual_mm": 45.50879941410524,
+    "threshold_mm": 50.0,
+    "status": "PASS"
+  },
+  "implants": {
+    "n_implants_u_frame": 4,
+    "n_implants_i_frame": 4,
+    "matched_marker_ids": [
+      100,
+      101,
+      102,
+      103
+    ],
+    "per_implant_residuals_mm": {
+      "1": 22.347600357401568,
+      "2": 45.50879941410524,
+      "3": 10.760140027018737,
+      "4": 21.815892665531567
+    }
+  },
+  "quality_gates": {
+    "rmse_threshold": {
+      "threshold_mm": 50.0,
+      "actual_mm": 28.116631430713944,
+      "passed": true
+    },
+    "min_correspondences": {
+      "threshold": 3,
+      "actual": 4,
+      "passed": true
+    }
+  }
+}

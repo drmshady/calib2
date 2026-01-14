@@ -1,0 +1,74 @@
+{
+  "frame": "I",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis_vector": [
+        0.03460618987344298,
+        0.009987235454981758,
+        0.99935112285443
+      ],
+      "marker_id": 100,
+      "scanbody_name": "SB01",
+      "fit_rms_mm": null
+    },
+    "2": {
+      "centroid_mm": [
+        19.642454147339,
+        -1.418838262558,
+        -1.011426925659
+      ],
+      "axis_vector": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "marker_id": 101,
+      "scanbody_name": "SB02",
+      "fit_rms_mm": null
+    },
+    "3": {
+      "centroid_mm": [
+        29.393187522888,
+        8.733249902725001,
+        0.0884743928909999
+      ],
+      "axis_vector": [
+        0.03682621627994494,
+        0.002452475523687498,
+        0.9993186754776018
+      ],
+      "marker_id": 102,
+      "scanbody_name": "SB03",
+      "fit_rms_mm": null
+    },
+    "4": {
+      "centroid_mm": [
+        39.041320800780994,
+        19.511509180068998,
+        -0.38471454381900005
+      ],
+      "axis_vector": [
+        0.11281103031420847,
+        -0.007076554085136703,
+        0.9935912609427112
+      ],
+      "marker_id": 103,
+      "scanbody_name": "SB04",
+      "fit_rms_mm": null
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T22:05:09.088687",
+    "source": "ios_scanbody_alignment",
+    "n_implants": 4,
+    "ios_case_id": "CASE_UNKNOWN",
+    "ios_frame": "IOS_WORLD",
+    "original_file": "D:\\calib2\\test\\fixtures\\real_ios_data\\ios_scanbody_poses.json"
+  }
+}

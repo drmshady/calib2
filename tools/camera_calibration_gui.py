@@ -13,6 +13,7 @@ import threading
 from pathlib import Path
 import sys
 import json
+from datetime import datetime
 
 # Import calibration functions from camera_calibration.py
 from camera_calibration import CharucoBoard, calibrate_camera, save_calibration
@@ -58,7 +59,20 @@ class CalibrationGUI:
         self.recon_layout_mode = tk.StringVar(value="unknown")  # "known" or "unknown"
         self.recon_phase4 = tk.BooleanVar(value=False)
         self.recon_phase4_method = tk.StringVar(value="reference_plate")
-        self.recon_ref_plate = tk.StringVar()
+        # Default reference plate for unknown layout (tags 100-103)
+        self.recon_ref_plate = tk.StringVar(value="calib/fixtures/reference_plate_tags100_103.json")
+
+        # Phase 3 (unknown layout): optional dot-assisted refinement
+        self.recon_refine_with_dots = tk.BooleanVar(value=False)
+        self.recon_cap_model = tk.StringVar(
+            value="aox-photogrammetry-flags/out_aox_flag_v2/models/cap_AOX_FLAG_10x10x10_ID100.json"
+        )
+        self.recon_dot_roi_half = tk.IntVar(value=30)
+        self.recon_dot_max_center_dist_px = tk.DoubleVar(value=14.0)
+        self.recon_dot_min_views = tk.IntVar(value=2)
+        self.recon_dot_max_reproj_px = tk.DoubleVar(value=3.0)
+        self.recon_qa_include_dots = tk.BooleanVar(value=False)
+        self.recon_export_include_dots = tk.BooleanVar(value=False)
         self.recon_save_log = tk.BooleanVar(value=True)  # Auto-save logs
         self.recon_accumulated_log = []  # Store all log lines
         
@@ -71,6 +85,30 @@ class CalibrationGUI:
         self.qg_manual_status = {}  # image_id -> bool (True=REMOVE, False=KEEP)
         self.qg_loaded_metadata = None
         self.qg_loaded_structure_path = None
+        
+        # Phase 6 IOS Integration Variables
+        self.p6_refpoints = tk.StringVar()
+        self.p6_implants_u = tk.StringVar()
+        self.p6_tag_size = tk.DoubleVar(value=8.8)
+        self.p6_ios_file = tk.StringVar()
+        self.p6_implants_i = tk.StringVar()
+        self.p6_marker_ids = tk.StringVar(value="100,101,102,103")
+        self.p6_transform_file = tk.StringVar()
+        self.p6_rmse_threshold = tk.DoubleVar(value=5.0)
+        self.p6_allow_scale = tk.BooleanVar(value=False)
+        self.p6_constellation_u = tk.StringVar()
+        self.p6_constellation_i = tk.StringVar()
+        # Step 4 (STL) options
+        self.p6_use_scanbody_stl = tk.BooleanVar(value=False)
+        self.p6_scanbody_stl = tk.StringVar()
+        self.p6_scanbody_axis = tk.StringVar(value='z')
+        self.p6_scanbody_scale = tk.DoubleVar(value=1.0)
+        self.p6_scanbody_recenter = tk.StringVar(value='none')
+        self.p6_package_dir = tk.StringVar()
+        self.p6_case_name = tk.StringVar(value="Patient001")
+        # Mapping interface variables
+        self.p6_sb_marker_map = {}  # {sb_position: marker_id}
+        self.p6_tooth_positions = {}  # {marker_id: tooth_number}
         
         self.is_running = False
         
@@ -86,16 +124,19 @@ class CalibrationGUI:
         validation_tab = ttk.Frame(self.notebook, padding="10")
         reconstruction_tab = ttk.Frame(self.notebook, padding="10")
         quality_gate_tab = ttk.Frame(self.notebook, padding="10")
+        phase6_tab = ttk.Frame(self.notebook, padding="10")
         
         self.calib_tab = calib_tab
         self.validation_tab = validation_tab
         self.reconstruction_tab = reconstruction_tab
         self.quality_gate_tab = quality_gate_tab
+        self.phase6_tab = phase6_tab
 
         self.notebook.add(calib_tab, text="Calibration")
         self.notebook.add(validation_tab, text="Validation (PnP + BA)")
         self.notebook.add(reconstruction_tab, text="Phase 3/4 Reconstruction")
         self.notebook.add(quality_gate_tab, text="Quality Gate")
+        self.notebook.add(phase6_tab, text="Phase 6: IOS Integration")
         
         # Create calibration interface
         self.create_calibration_tab(calib_tab)
@@ -108,11 +149,14 @@ class CalibrationGUI:
         
         # Create quality gate interface
         self.create_quality_gate_tab(quality_gate_tab)
+        
+        # Create Phase 6 interface
+        self.create_phase6_tab(phase6_tab)
     
     def create_calibration_tab(self, parent):
         # Main container with padding
         main_frame = ttk.Frame(parent)
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="nsew")
         
         # Configure grid weights
         parent.columnconfigure(0, weight=1)
@@ -130,7 +174,7 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Image Folder:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=5)
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.image_folder, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.image_folder, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_folder).grid(row=row, column=2)
         row += 1
         
@@ -138,13 +182,13 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Output File:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.output_file, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.output_file, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_output).grid(row=row, column=2)
         row += 1
         
         # Board Configuration Section
         board_frame = ttk.LabelFrame(main_frame, text="ChArUco Board Configuration", padding="10")
-        board_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
+        board_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(15, 5))
         board_frame.columnconfigure(1, weight=1)
         board_frame.columnconfigure(3, weight=1)
         row += 1
@@ -173,11 +217,11 @@ class CalibrationGUI:
             'DICT_7X7_50', 'DICT_7X7_100', 'DICT_7X7_250', 'DICT_7X7_1000',
             'DICT_APRILTAG_16h5', 'DICT_APRILTAG_25h9', 'DICT_APRILTAG_36h10', 'DICT_APRILTAG_36h11'
         ]
-        dict_combo.grid(row=board_row, column=1, columnspan=3, sticky=(tk.W, tk.E))
+        dict_combo.grid(row=board_row, column=1, columnspan=3, sticky="we")
         
         # Calibration Parameters Section
         calib_frame = ttk.LabelFrame(main_frame, text="Calibration Parameters", padding="10")
-        calib_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        calib_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=5)
         calib_frame.columnconfigure(1, weight=1)
         calib_frame.columnconfigure(3, weight=1)
         row += 1
@@ -213,7 +257,7 @@ class CalibrationGUI:
         
         # Progress bar
         self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.progress.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.progress.grid(row=row, column=0, columnspan=3, sticky="we", pady=(0, 10))
         row += 1
         
         # Log output
@@ -221,7 +265,7 @@ class CalibrationGUI:
         row += 1
         
         self.log_text = scrolledtext.ScrolledText(main_frame, height=15, width=90, wrap=tk.WORD, state=tk.DISABLED)
-        self.log_text.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        self.log_text.grid(row=row, column=0, columnspan=3, sticky="nsew", pady=(0, 10))
         main_frame.rowconfigure(row, weight=1)
         
     def browse_folder(self):
@@ -394,7 +438,7 @@ class CalibrationGUI:
     def create_validation_tab(self, parent):
         """Create validation tab for PnP + BA testing."""
         main_frame = ttk.Frame(parent)
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="nsew")
         
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
@@ -411,7 +455,7 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Test Images Folder:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=5)
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.test_folder, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.test_folder, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_test_folder).grid(row=row, column=2)
         row += 1
         
@@ -419,7 +463,7 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Calibration File (JSON):", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.calib_file, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.calib_file, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_calib_file).grid(row=row, column=2)
         row += 1
         
@@ -427,13 +471,13 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Tag Layout File (JSON):", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.layout_file, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.layout_file, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_layout_file).grid(row=row, column=2)
         row += 1
         
         # Parameters Frame
         param_frame = ttk.LabelFrame(main_frame, text="Parameters", padding="10")
-        param_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
+        param_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(15, 5))
         param_frame.columnconfigure(1, weight=1)
         row += 1
         
@@ -456,7 +500,7 @@ class CalibrationGUI:
         param_row += 1
         
         ttk.Label(param_frame, text="Output File (optional):").grid(row=param_row, column=0, sticky=tk.W, padx=(0, 5), pady=5)
-        ttk.Entry(param_frame, textvariable=self.validation_output, width=40).grid(row=param_row, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Entry(param_frame, textvariable=self.validation_output, width=40).grid(row=param_row, column=1, sticky="we", pady=5)
         
         # Control Buttons
         button_frame = ttk.Frame(main_frame)
@@ -470,7 +514,7 @@ class CalibrationGUI:
         
         # Progress bar
         self.val_progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.val_progress.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.val_progress.grid(row=row, column=0, columnspan=3, sticky="we", pady=(0, 10))
         row += 1
         
         # Log output
@@ -478,7 +522,7 @@ class CalibrationGUI:
         row += 1
         
         self.val_log_text = scrolledtext.ScrolledText(main_frame, height=15, width=90, wrap=tk.WORD, state=tk.DISABLED)
-        self.val_log_text.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        self.val_log_text.grid(row=row, column=0, columnspan=3, sticky="nsew", pady=(0, 10))
         main_frame.rowconfigure(row, weight=1)
     
     def browse_test_folder(self):
@@ -702,11 +746,29 @@ class CalibrationGUI:
     
     def create_reconstruction_tab(self, parent):
         """Create Phase 3/4 reconstruction interface."""
-        main_frame = ttk.Frame(parent)
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create canvas with scrollbar for scrollable content
+        canvas = tk.Canvas(parent, borderwidth=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        parent.columnconfigure(0, weight=1)
-        parent.rowconfigure(0, weight=1)
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Enable mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        main_frame = scrollable_frame
         main_frame.columnconfigure(1, weight=1)
         
         row = 0
@@ -720,7 +782,7 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Input Images:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=5)
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.recon_images, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.recon_images, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_recon_images).grid(row=row, column=2)
         row += 1
         ttk.Label(main_frame, text="Glob pattern (e.g., data/*.TIF)", font=('Arial', 8)).grid(row=row, column=0, columnspan=2, sticky=tk.W)
@@ -730,7 +792,7 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Calibration File:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.recon_calib, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.recon_calib, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_recon_calib).grid(row=row, column=2)
         row += 1
         
@@ -738,13 +800,13 @@ class CalibrationGUI:
         ttk.Label(main_frame, text="Output Directory:", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.recon_output, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
+        ttk.Entry(main_frame, textvariable=self.recon_output, width=60).grid(row=row, column=0, columnspan=2, sticky="we", padx=(0, 5))
         ttk.Button(main_frame, text="Browse...", command=self.browse_recon_output).grid(row=row, column=2)
         row += 1
         
         # Layout Mode Selection
         layout_mode_frame = ttk.LabelFrame(main_frame, text="Layout Mode", padding="10")
-        layout_mode_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
+        layout_mode_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(15, 5))
         row += 1
         
         ttk.Radiobutton(layout_mode_frame, text="Unknown Layout (Triangulate from observations)", 
@@ -764,11 +826,11 @@ class CalibrationGUI:
         self.layout_file_label.grid(row=4, column=0, sticky=tk.W, pady=(10, 5))
         
         layout_entry_frame = ttk.Frame(layout_mode_frame)
-        layout_entry_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        layout_entry_frame.grid(row=5, column=0, sticky="we", pady=(0, 5))
         layout_entry_frame.columnconfigure(0, weight=1)
         
         self.layout_file_entry = ttk.Entry(layout_entry_frame, textvariable=self.recon_layout, width=50)
-        self.layout_file_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        self.layout_file_entry.grid(row=0, column=0, sticky="we", padx=(0, 5))
         self.layout_file_button = ttk.Button(layout_entry_frame, text="Browse...", command=self.browse_recon_layout)
         self.layout_file_button.grid(row=0, column=1)
         
@@ -777,16 +839,74 @@ class CalibrationGUI:
         
         # Parameters Frame
         params_frame = ttk.LabelFrame(main_frame, text="Parameters", padding="10")
-        params_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 10))
+        params_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(15, 10))
         row += 1
         
         # Tag Size
         ttk.Label(params_frame, text="AprilTag Edge Length (mm):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         ttk.Entry(params_frame, textvariable=self.recon_tag_size, width=15).grid(row=0, column=1, sticky=tk.W, padx=5)
+
+        # Dot refinement (unknown layout only)
+        dot_frame = ttk.LabelFrame(main_frame, text="Dot Refinement (Unknown Layout Only)", padding="10")
+        dot_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(0, 10))
+        dot_frame.columnconfigure(1, weight=1)
+        row += 1
+
+        self.recon_dots_check = ttk.Checkbutton(
+            dot_frame,
+            text="Refine with dots (AOX flag v2)",
+            variable=self.recon_refine_with_dots,
+            command=self.toggle_dot_refinement,
+        )
+        self.recon_dots_check.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 5))
+
+        ttk.Label(dot_frame, text="Cap model JSON:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.recon_cap_model_entry = ttk.Entry(dot_frame, textvariable=self.recon_cap_model, width=60)
+        self.recon_cap_model_entry.grid(row=1, column=1, sticky="we", padx=5)
+        self.recon_cap_model_button = ttk.Button(dot_frame, text="Browse...", command=self.browse_recon_cap_model)
+        self.recon_cap_model_button.grid(row=1, column=2, padx=5)
+
+        ttk.Label(dot_frame, text="ROI half-size (px):").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
+        self.recon_dot_roi_half_entry = ttk.Entry(dot_frame, textvariable=self.recon_dot_roi_half, width=10)
+        self.recon_dot_roi_half_entry.grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Label(dot_frame, text="Max center dist (px):").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
+        self.recon_dot_max_center_dist_entry = ttk.Entry(dot_frame, textvariable=self.recon_dot_max_center_dist_px, width=10)
+        self.recon_dot_max_center_dist_entry.grid(row=3, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Label(dot_frame, text="Min views:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
+        self.recon_dot_min_views_entry = ttk.Entry(dot_frame, textvariable=self.recon_dot_min_views, width=10)
+        self.recon_dot_min_views_entry.grid(row=4, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Label(dot_frame, text="Max reproj (px):").grid(row=5, column=0, sticky=tk.W, padx=5, pady=2)
+        self.recon_dot_max_reproj_entry = ttk.Entry(dot_frame, textvariable=self.recon_dot_max_reproj_px, width=10)
+        self.recon_dot_max_reproj_entry.grid(row=5, column=1, sticky=tk.W, padx=5, pady=2)
+
+        self.recon_qa_include_dots_check = ttk.Checkbutton(
+            dot_frame, text="Include dots in QA gates", variable=self.recon_qa_include_dots
+        )
+        self.recon_qa_include_dots_check.grid(row=6, column=0, columnspan=3, sticky=tk.W, padx=5, pady=(6, 0))
+
+        self.recon_export_include_dots_check = ttk.Checkbutton(
+            dot_frame,
+            text="Write legacy outputs with dots included",
+            variable=self.recon_export_include_dots,
+        )
+        self.recon_export_include_dots_check.grid(row=7, column=0, columnspan=3, sticky=tk.W, padx=5, pady=(2, 0))
+
+        ttk.Label(
+            dot_frame,
+            text="Default keeps QA + legacy outputs tag-only; dots export separately.",
+            font=('Arial', 8),
+            foreground='gray',
+        ).grid(row=8, column=0, columnspan=3, sticky=tk.W, padx=5, pady=(4, 0))
+
+        # Initialize dot controls now that widgets exist
+        self.toggle_dot_refinement()
         
         # Phase 4 Options Frame
         phase4_frame = ttk.LabelFrame(main_frame, text="Phase 4: User Frame Transform", padding="10")
-        phase4_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 10))
+        phase4_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(10, 10))
         row += 1
         
         ttk.Checkbutton(phase4_frame, text="Enable Phase 4 (L→U Transform)", variable=self.recon_phase4, 
@@ -800,13 +920,13 @@ class CalibrationGUI:
         
         ttk.Label(phase4_frame, text="Reference Plate File:").grid(row=2, column=0, sticky=tk.W, padx=(20, 5), pady=5)
         self.ref_plate_entry = ttk.Entry(phase4_frame, textvariable=self.recon_ref_plate, width=40, state=tk.DISABLED)
-        self.ref_plate_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=5)
+        self.ref_plate_entry.grid(row=2, column=1, sticky="we", padx=5)
         self.ref_plate_button = ttk.Button(phase4_frame, text="Browse...", command=self.browse_ref_plate, state=tk.DISABLED)
         self.ref_plate_button.grid(row=2, column=2, padx=5)
         
         # Progress and Log
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 5))
+        progress_frame.grid(row=row, column=0, columnspan=3, sticky="we", pady=(10, 5))
         row += 1
         
         self.recon_progress = ttk.Progressbar(progress_frame, mode='indeterminate')
@@ -814,7 +934,7 @@ class CalibrationGUI:
         
         # Log Output
         log_frame = ttk.LabelFrame(main_frame, text="Reconstruction Log", padding="5")
-        log_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(5, 10))
+        log_frame.grid(row=row, column=0, columnspan=3, sticky="nsew", pady=(5, 10))
         main_frame.rowconfigure(row, weight=1)
         row += 1
         
@@ -872,6 +992,47 @@ class CalibrationGUI:
         )
         if file:
             self.recon_layout.set(file)
+
+    def browse_recon_cap_model(self):
+        """Browse for AOX cap model JSON used for dot refinement."""
+        file = filedialog.askopenfilename(
+            title="Select Cap Model JSON",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+        )
+        if file:
+            self.recon_cap_model.set(file)
+
+    def toggle_dot_refinement(self):
+        """Enable/disable dot refinement controls based on layout mode and checkbox."""
+        in_unknown_layout = self.recon_layout_mode.get() == "unknown"
+        enabled = bool(self.recon_refine_with_dots.get()) and in_unknown_layout
+
+        state_all = tk.NORMAL if in_unknown_layout else tk.DISABLED
+        state_details = tk.NORMAL if enabled else tk.DISABLED
+
+        if hasattr(self, "recon_dots_check"):
+            try:
+                self.recon_dots_check.config(state=state_all)
+            except Exception:
+                pass
+
+        for widget_name in (
+            "recon_cap_model_entry",
+            "recon_cap_model_button",
+            "recon_dot_roi_half_entry",
+            "recon_dot_max_center_dist_entry",
+            "recon_dot_min_views_entry",
+            "recon_dot_max_reproj_entry",
+            "recon_qa_include_dots_check",
+            "recon_export_include_dots_check",
+        ):
+            widget = getattr(self, widget_name, None)
+            if widget is None:
+                continue
+            try:
+                widget.config(state=state_details)
+            except Exception:
+                pass
     
     def toggle_layout_mode(self):
         """Toggle layout file controls based on mode."""
@@ -879,10 +1040,19 @@ class CalibrationGUI:
             self.layout_file_label.config(state=tk.NORMAL)
             self.layout_file_entry.config(state=tk.NORMAL)
             self.layout_file_button.config(state=tk.NORMAL)
+            # Set default reference plate for known layout (tags 1-4)
+            if not self.recon_ref_plate.get() or "tags100_103" in self.recon_ref_plate.get():
+                self.recon_ref_plate.set("calib/fixtures/reference_plate_4tags.json")
         else:
             self.layout_file_label.config(state=tk.DISABLED)
             self.layout_file_entry.config(state=tk.DISABLED)
             self.layout_file_button.config(state=tk.DISABLED)
+            # Set default reference plate for unknown layout (tags 100-103)
+            if not self.recon_ref_plate.get() or "4tags.json" in self.recon_ref_plate.get():
+                self.recon_ref_plate.set("calib/fixtures/reference_plate_tags100_103.json")
+
+        # Dot refinement only applies to unknown-layout pipeline
+        self.toggle_dot_refinement()
     
     def browse_ref_plate(self):
         """Browse for reference plate file."""
@@ -992,6 +1162,16 @@ class CalibrationGUI:
                         calib_file=self.recon_calib.get(),
                         output_dir=self.recon_output.get(),
                         tag_size_mm=self.recon_tag_size.get(),
+                        refine_with_dots=bool(self.recon_refine_with_dots.get()),
+                        cap_model_file=(self.recon_cap_model.get().strip() or None),
+                        dot_roi_half=int(self.recon_dot_roi_half.get()),
+                        dot_max_center_dist_px=float(self.recon_dot_max_center_dist_px.get()),
+                        dot_min_views=int(self.recon_dot_min_views.get()),
+                        dot_max_reproj_px=float(self.recon_dot_max_reproj_px.get()),
+                        qa_include_dots=bool(self.recon_qa_include_dots.get()),
+                        export_include_dots=bool(self.recon_export_include_dots.get()),
+                        phase4_enabled=self.recon_phase4.get(),
+                        reference_plate_file=self.recon_ref_plate.get() if self.recon_phase4.get() else None,
                         verbose=True
                     )
                 else:
@@ -1007,6 +1187,15 @@ class CalibrationGUI:
                         verbose=True
                     )
 
+                # Log dot refinement stats if applicable
+                if self.recon_layout_mode.get() == "unknown" and phase3_metadata.get("dot_refinement", {}).get("enabled"):
+                    dot_stats = phase3_metadata.get("dot_refinement", {})
+                    points_added = dot_stats.get("points_added", 0)
+                    tracks_used = dot_stats.get("tracks_used", 0)
+                    if points_added > 0:
+                        self.recon_log_text("")
+                        self.recon_log_text(f"✓ Dot refinement: added {points_added} points (from {tracks_used} tracks)")
+
                 # Always allow outlier analysis + re-opt even if QA failed.
                 if not phase3_metadata.get("qa_passed", False):
                     self.recon_log_text("")
@@ -1015,8 +1204,9 @@ class CalibrationGUI:
                 # Kick the user into Quality Gate with this output directory.
                 self.root.after(0, lambda: self.open_quality_gate(self.recon_output.get()))
                 
-                # Run Phase 4 if enabled
-                if self.recon_phase4.get():
+                # Run Phase 4 if enabled (for known layout only; unknown layout handles it internally)
+                if self.recon_phase4.get() and self.recon_layout_mode.get() == "known":
+                    import phase3_test_pipeline
                     phase4_success, phase4_metadata = phase3_test_pipeline.run_phase4_transform(
                         sfm=sfm,
                         reference_plate_file=self.recon_ref_plate.get(),
@@ -1029,6 +1219,13 @@ class CalibrationGUI:
                         self.recon_log_text("❌ Phase 4 FAILED - hard-stop validation gates not passed")
                         self.finish_reconstruction(success=False)
                         return
+                
+                # For unknown layout, check Phase 4 result from metadata
+                if self.recon_layout_mode.get() == "unknown" and self.recon_phase4.get():
+                    phase4_result = phase3_metadata.get("phase4_result", {})
+                    if phase4_result.get("enabled") and not phase4_result.get("passed"):
+                        self.recon_log_text("")
+                        self.recon_log_text("⚠️  Phase 4 did not fully pass (see log above)")
                 
                 self.recon_log_text("")
                 self.recon_log_text("✅ Reconstruction completed successfully!")
@@ -1047,7 +1244,7 @@ class CalibrationGUI:
     def create_quality_gate_tab(self, parent):
         """Create quality gate image filtering interface."""
         main_frame = ttk.Frame(parent)
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="nsew")
         
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
@@ -1063,18 +1260,18 @@ class CalibrationGUI:
         
         # Load Section
         load_frame = ttk.LabelFrame(main_frame, text="Load Reconstruction", padding="10")
-        load_frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        load_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
         load_frame.columnconfigure(1, weight=1)
         row += 1
         
         ttk.Label(load_frame, text="Reconstruction Directory:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        ttk.Entry(load_frame, textvariable=self.qg_reconstruction_dir, width=60).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        ttk.Entry(load_frame, textvariable=self.qg_reconstruction_dir, width=60).grid(row=0, column=1, sticky="we", padx=5)
         ttk.Button(load_frame, text="Browse...", command=self.qg_browse_reconstruction).grid(row=0, column=2, padx=5)
         ttk.Button(load_frame, text="Load & Analyze", command=self.qg_load_reconstruction, style='Accent.TButton').grid(row=0, column=3, padx=5)
         
         # Filter Controls
         control_frame = ttk.LabelFrame(main_frame, text="Filter Settings", padding="10")
-        control_frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        control_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
         control_frame.columnconfigure(1, weight=1)
         row += 1
         
@@ -1092,19 +1289,19 @@ class CalibrationGUI:
         self.qg_percentile_label.grid(row=1, column=1, sticky=tk.W, padx=5)
         
         slider_frame = ttk.Frame(control_frame)
-        slider_frame.grid(row=2, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=5)
+        slider_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
         slider_frame.columnconfigure(0, weight=1)
         
         self.qg_slider = ttk.Scale(slider_frame, from_=0, to=50, orient=tk.HORIZONTAL, 
                                    variable=self.qg_cutoff_percentile, command=self.qg_slider_changed)
-        self.qg_slider.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=5)
+        self.qg_slider.grid(row=0, column=0, sticky="we", padx=5)
         
         ttk.Label(slider_frame, text="0%").grid(row=1, column=0, sticky=tk.W, padx=5)
         ttk.Label(slider_frame, text="50%").grid(row=1, column=0, sticky=tk.E, padx=5)
         
         # Statistics display
         stats_frame = ttk.Frame(control_frame)
-        stats_frame.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=10)
+        stats_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=10)
         
         self.qg_stats_label = ttk.Label(stats_frame, text="Load reconstruction to see statistics", 
                                         font=('Arial', 9), foreground='gray')
@@ -1112,7 +1309,7 @@ class CalibrationGUI:
         
         # Image Error Table
         table_frame = ttk.LabelFrame(main_frame, text="Per-Image Errors (sorted worst to best)", padding="5")
-        table_frame.grid(row=row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        table_frame.grid(row=row, column=0, sticky="nsew", pady=(0, 10))
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
         row += 1
@@ -1665,6 +1862,900 @@ class CalibrationGUI:
         else:
             self.qg_manual_status[img_id] = not current
         self.qg_update_preview()
+
+    # ===== Phase 6: IOS Integration =====
+    
+    def create_phase6_tab(self, parent):
+        """Create Phase 6 IOS Integration interface."""
+        # Scrollable container so all Phase 6 fields remain accessible
+        outer = ttk.Frame(parent)
+        outer.grid(row=0, column=0, sticky="nsew")
+
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+        outer.columnconfigure(0, weight=1)
+        outer.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(outer, highlightthickness=0)
+        vscroll = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vscroll.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vscroll.grid(row=0, column=1, sticky="ns")
+
+        main_frame = ttk.Frame(canvas)
+        main_frame.columnconfigure(0, weight=1)
+        window_id = canvas.create_window((0, 0), window=main_frame, anchor="nw")
+
+        def _on_frame_configure(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def _on_canvas_configure(event):
+            # Keep inner frame width matched to canvas
+            canvas.itemconfigure(window_id, width=event.width)
+
+        main_frame.bind("<Configure>", _on_frame_configure)
+        canvas.bind("<Configure>", _on_canvas_configure)
+
+        def _bind_mousewheel(_event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        def _unbind_mousewheel(_event):
+            canvas.unbind_all("<MouseWheel>")
+
+        def _on_mousewheel(event):
+            # Windows: event.delta is multiple of 120
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind("<Enter>", _bind_mousewheel)
+        canvas.bind("<Leave>", _unbind_mousewheel)
+        
+        row = 0
+        
+        # Title and description
+        title = ttk.Label(main_frame, text="Phase 6: IOS Integration", font=('Arial', 16, 'bold'))
+        title.grid(row=row, column=0, pady=(0, 5), sticky=tk.W)
+        row += 1
+        
+        desc = ttk.Label(main_frame, text="Align photogrammetry implants with IOS scan body data for CAD/CAM workflow.",
+                        font=('Arial', 10))
+        desc.grid(row=row, column=0, pady=(0, 5), sticky=tk.W)
+        row += 1
+        
+        # Workflow overview
+        workflow_text = "📋 Workflow: Extract implants → Convert IOS data → Compute alignment → Generate STLs → Export package"
+        workflow = ttk.Label(main_frame, text=workflow_text, font=('Arial', 9), foreground='#555')
+        workflow.grid(row=row, column=0, pady=(0, 15), sticky=tk.W)
+        row += 1
+
+        # Quick setup (explicit required file selection)
+        quick_frame = ttk.LabelFrame(main_frame, text="⚡ Quick Setup (Required Files)", padding="10")
+        quick_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        quick_frame.columnconfigure(1, weight=1)
+        row += 1
+
+        qs_row = 0
+        ttk.Label(quick_frame, text="Implants_U.json (U-frame):").grid(row=qs_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(quick_frame, textvariable=self.p6_implants_u, width=50).grid(row=qs_row, column=1, sticky="we", padx=5)
+        ttk.Button(quick_frame, text="Browse...", command=lambda: self.p6_implants_u.set(
+            filedialog.askopenfilename(title="Select implants_U.json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=qs_row, column=2, padx=5)
+        qs_row += 1
+
+        ttk.Label(quick_frame, text="Implants_I.json (IOS I-frame):").grid(row=qs_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(quick_frame, textvariable=self.p6_implants_i, width=50).grid(row=qs_row, column=1, sticky="we", padx=5)
+        ttk.Button(quick_frame, text="Browse...", command=lambda: self.p6_implants_i.set(
+            filedialog.askopenfilename(title="Select implants_I.json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=qs_row, column=2, padx=5)
+        qs_row += 1
+
+        ttk.Label(quick_frame, text="Output T_I_from_U.json:").grid(row=qs_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(quick_frame, textvariable=self.p6_transform_file, width=50).grid(row=qs_row, column=1, sticky="we", padx=5)
+        ttk.Button(quick_frame, text="Browse...", command=lambda: self.p6_transform_file.set(
+            filedialog.asksaveasfilename(title="Save T_I_from_U.json", defaultextension=".json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=qs_row, column=2, padx=5)
+        qs_row += 1
+
+        ttk.Label(
+            quick_frame,
+            text="Tip: You can skip Step 1/2 if you already have these JSON files.",
+            font=('Arial', 8),
+            foreground='gray'
+        ).grid(row=qs_row, column=0, columnspan=3, sticky=tk.W, padx=5, pady=(2, 0))
+        
+        # Step 1: Extract Implants from Photogrammetry
+        step1_frame = ttk.LabelFrame(main_frame, text="📍 Step 1: Extract Implants from Photogrammetry", padding="15")
+        step1_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        step1_frame.columnconfigure(1, weight=1)
+        row += 1
+        
+        s1_row = 0
+        
+        # Helper tool section (prominent placement)
+        helper_frame = ttk.LabelFrame(step1_frame, text="🔧 Helper Tool", padding="10")
+        helper_frame.grid(row=s1_row, column=0, columnspan=3, sticky="we", pady=(0, 15))
+        s1_row += 1
+        
+        helper_inner = ttk.Frame(helper_frame)
+        helper_inner.pack(fill=tk.X)
+        
+        ttk.Label(helper_inner, text="Don't have refpoints_U.json? Convert from Phase 3 output:", 
+                 font=('Arial', 9)).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(helper_inner, text="📄 Create from structure_L.json", 
+                  command=self.p6_create_refpoints_u).pack(side=tk.LEFT)
+        
+        ttk.Label(step1_frame, text="Input refpoints_U.json:").grid(row=s1_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step1_frame, textvariable=self.p6_refpoints, width=50).grid(row=s1_row, column=1, sticky="we", padx=5)
+        ttk.Button(step1_frame, text="Browse...", command=lambda: self.p6_refpoints.set(
+            filedialog.askopenfilename(title="Select refpoints_U.json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=s1_row, column=2, padx=5)
+        s1_row += 1
+        
+        ttk.Label(step1_frame, text="Output implants_U.json:").grid(row=s1_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step1_frame, textvariable=self.p6_implants_u, width=50).grid(row=s1_row, column=1, sticky="we", padx=5)
+        ttk.Button(step1_frame, text="Browse...", command=lambda: self.p6_implants_u.set(
+            filedialog.asksaveasfilename(title="Save implants_U.json", defaultextension=".json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=s1_row, column=2, padx=5)
+        s1_row += 1
+        
+        ttk.Label(step1_frame, text="Tag Size (mm):").grid(row=s1_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Spinbox(step1_frame, from_=1.0, to=100.0, increment=0.1, textvariable=self.p6_tag_size, width=10).grid(row=s1_row, column=1, sticky=tk.W, padx=5)
+        ttk.Button(step1_frame, text="Extract Implants", command=self.p6_extract_implants, style='Accent.TButton').grid(row=s1_row, column=2, padx=5)
+        s1_row += 1
+        
+        # Step 2: Convert IOS Data
+        step2_frame = ttk.LabelFrame(main_frame, text="📊 Step 2: Convert IOS Scan Body Data & Mapping", padding="15")
+        step2_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        step2_frame.columnconfigure(1, weight=1)
+        row += 1
+        
+        s2_row = 0
+        ttk.Label(step2_frame, text="IOS Scan Body Data (.json / .csv):").grid(row=s2_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step2_frame, textvariable=self.p6_ios_file, width=50).grid(row=s2_row, column=1, sticky="we", padx=5)
+        ttk.Button(step2_frame, text="Browse...", command=lambda: self.p6_ios_file.set(
+            filedialog.askopenfilename(title="Select IOS Data", filetypes=[("JSON", "*.json"), ("CSV", "*.csv"), ("All Files", "*.*")])
+        )).grid(row=s2_row, column=2, padx=5)
+        s2_row += 1
+        
+        ttk.Label(step2_frame, text="Output implants_I.json:").grid(row=s2_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step2_frame, textvariable=self.p6_implants_i, width=50).grid(row=s2_row, column=1, sticky="we", padx=5)
+        ttk.Button(step2_frame, text="Browse...", command=lambda: self.p6_implants_i.set(
+            filedialog.asksaveasfilename(title="Save implants_I.json", defaultextension=".json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=s2_row, column=2, padx=5)
+        s2_row += 1
+        
+        # Marker ID to Tooth Position Mapping
+        ttk.Label(step2_frame, text="Marker IDs (comma-separated):").grid(row=s2_row, column=0, sticky=tk.W, pady=5, padx=5)
+        marker_entry = ttk.Entry(step2_frame, textvariable=self.p6_marker_ids, width=25)
+        marker_entry.grid(row=s2_row, column=1, sticky=tk.W, padx=5)
+        ttk.Label(step2_frame, text="e.g., 100,101,102,103", font=('Arial', 8), foreground='gray').grid(row=s2_row, column=2, sticky=tk.W, padx=5)
+        s2_row += 1
+        
+        # Mapping editor section (prominent placement)
+        mapping_frame = ttk.LabelFrame(step2_frame, text="🎯 Correspondence Mapping", padding="10")
+        mapping_frame.grid(row=s2_row, column=0, columnspan=3, sticky="we", pady=(10, 15))
+        s2_row += 1
+        
+        mapping_inner = ttk.Frame(mapping_frame)
+        mapping_inner.pack(fill=tk.X)
+        
+        ttk.Label(mapping_inner, text="Prevent alignment errors by explicitly mapping scan body positions to marker IDs:", 
+                 font=('Arial', 9)).pack(anchor=tk.W, pady=(0, 5))
+        ttk.Button(mapping_inner, text="🗺️ Open Mapping Editor", command=self.p6_open_mapping_editor).pack(anchor=tk.W)
+        
+        ttk.Button(step2_frame, text="Convert IOS Data", command=self.p6_convert_ios, style='Accent.TButton').grid(row=s2_row, column=1, pady=5)
+        s2_row += 1
+        
+        # Step 3: Compute Alignment
+        step3_frame = ttk.LabelFrame(main_frame, text="🔄 Step 3: Compute Alignment (T_I_from_U)", padding="15")
+        step3_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        step3_frame.columnconfigure(1, weight=1)
+        row += 1
+        
+        s3_row = 0
+        ttk.Label(step3_frame, text="Output T_I_from_U.json:").grid(row=s3_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step3_frame, textvariable=self.p6_transform_file, width=50).grid(row=s3_row, column=1, sticky="we", padx=5)
+        ttk.Button(step3_frame, text="Browse...", command=lambda: self.p6_transform_file.set(
+            filedialog.asksaveasfilename(title="Save T_I_from_U.json", defaultextension=".json", filetypes=[("JSON", "*.json"), ("All Files", "*.*")])
+        )).grid(row=s3_row, column=2, padx=5)
+        s3_row += 1
+        
+        ttk.Label(step3_frame, text="RMSE Threshold (mm):").grid(row=s3_row, column=0, sticky=tk.W, pady=5, padx=5)
+        rmse_spin = ttk.Spinbox(step3_frame, from_=0.1, to=50.0, increment=0.1, textvariable=self.p6_rmse_threshold, width=10)
+        rmse_spin.grid(row=s3_row, column=1, sticky=tk.W, padx=5)
+        ttk.Label(step3_frame, text="Max acceptable alignment error", font=('Arial', 8), foreground='gray').grid(row=s3_row, column=2, sticky=tk.W, padx=5)
+        s3_row += 1
+        
+        # Scale estimation option (prominent)
+        scale_frame = ttk.Frame(step3_frame)
+        scale_frame.grid(row=s3_row, column=0, columnspan=3, sticky="we", pady=(10, 5))
+        s3_row += 1
+        
+        ttk.Checkbutton(scale_frame, text="⚖️ Allow scale estimation (Sim3 transform)", 
+                       variable=self.p6_allow_scale, style='Accent.TCheckbutton').pack(anchor=tk.W)
+        ttk.Label(scale_frame, text="  Enable when IOS and photogrammetry have different units or scales (~3-4× difference)", 
+                 font=('Arial', 9), foreground='#555').pack(anchor=tk.W, padx=(20, 0))
+        ttk.Label(scale_frame, text="  ⚠️  Leave unchecked if both systems use same scale (e.g., both in mm)", 
+                 font=('Arial', 8), foreground='#888').pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+        
+        ttk.Button(step3_frame, text="Compute Alignment", command=self.p6_compute_alignment, style='Accent.TButton').grid(row=s3_row, column=1, padx=5)
+        s3_row += 1
+        
+        # Step 4: Generate Constellation STL
+        step4_frame = ttk.LabelFrame(main_frame, text="🎨 Step 4: Generate Constellation STL Visualization", padding="15")
+        step4_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        step4_frame.columnconfigure(1, weight=1)
+        row += 1
+        
+        s4_row = 0
+
+        # Optional scanbody STL template
+        scanbody_frame = ttk.LabelFrame(step4_frame, text="Optional: Use Scanbody STL Template", padding="10")
+        scanbody_frame.grid(row=s4_row, column=0, columnspan=3, sticky="we", pady=(0, 10), padx=5)
+        scanbody_frame.columnconfigure(1, weight=1)
+        s4_row += 1
+
+        ttk.Checkbutton(
+            scanbody_frame,
+            text="Use scanbody STL instead of cylinders/cones",
+            variable=self.p6_use_scanbody_stl
+        ).grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 8))
+
+        ttk.Label(scanbody_frame, text="Scanbody STL:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(scanbody_frame, textvariable=self.p6_scanbody_stl, width=50).grid(row=1, column=1, sticky="we", padx=5)
+        ttk.Button(scanbody_frame, text="Browse...", command=lambda: self.p6_scanbody_stl.set(
+            filedialog.askopenfilename(title="Select scanbody STL", filetypes=[("STL", "*.stl"), ("All Files", "*.*")])
+        )).grid(row=1, column=2, padx=5)
+
+        ttk.Label(scanbody_frame, text="Template axis:").grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Combobox(scanbody_frame, textvariable=self.p6_scanbody_axis, values=['x', 'y', 'z', '-x', '-y', '-z'], width=6, state='readonly').grid(row=2, column=1, sticky=tk.W, padx=5)
+        ttk.Label(scanbody_frame, text="(axis in STL that points along implant axis)", font=('Arial', 8), foreground='gray').grid(row=2, column=2, sticky=tk.W)
+
+        ttk.Label(scanbody_frame, text="STL scale:").grid(row=3, column=0, sticky=tk.W, pady=3)
+        ttk.Spinbox(scanbody_frame, from_=0.001, to=1000.0, increment=0.1, textvariable=self.p6_scanbody_scale, width=10).grid(row=3, column=1, sticky=tk.W, padx=5)
+        ttk.Label(scanbody_frame, text="(use 1.0 if STL is already in mm)", font=('Arial', 8), foreground='gray').grid(row=3, column=2, sticky=tk.W)
+
+        ttk.Label(scanbody_frame, text="Recenter:").grid(row=4, column=0, sticky=tk.W, pady=3)
+        ttk.Combobox(scanbody_frame, textvariable=self.p6_scanbody_recenter, values=['none', 'bbox', 'centroid'], width=10, state='readonly').grid(row=4, column=1, sticky=tk.W, padx=5)
+        ttk.Label(scanbody_frame, text="(if STL origin isn't at scanbody center)", font=('Arial', 8), foreground='gray').grid(row=4, column=2, sticky=tk.W)
+        ttk.Label(step4_frame, text="U-Constellation Output:").grid(row=s4_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step4_frame, textvariable=self.p6_constellation_u, width=50).grid(row=s4_row, column=1, sticky="we", padx=5)
+        ttk.Button(step4_frame, text="Browse...", command=lambda: self.p6_constellation_u.set(
+            filedialog.asksaveasfilename(title="Save U_Constellation.stl", defaultextension=".stl", filetypes=[("STL", "*.stl"), ("All Files", "*.*")])
+        )).grid(row=s4_row, column=2, padx=5)
+        s4_row += 1
+        
+        ttk.Label(step4_frame, text="I-Constellation Output:").grid(row=s4_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step4_frame, textvariable=self.p6_constellation_i, width=50).grid(row=s4_row, column=1, sticky="we", padx=5)
+        ttk.Button(step4_frame, text="Browse...", command=lambda: self.p6_constellation_i.set(
+            filedialog.asksaveasfilename(title="Save I_Constellation.stl", defaultextension=".stl", filetypes=[("STL", "*.stl"), ("All Files", "*.*")])
+        )).grid(row=s4_row, column=2, padx=5)
+        s4_row += 1
+        
+        ttk.Button(step4_frame, text="Generate Both STLs", command=self.p6_generate_constellations, style='Accent.TButton').grid(row=s4_row, column=1, pady=5)
+        s4_row += 1
+        
+        # Step 5: Export Package
+        step5_frame = ttk.LabelFrame(main_frame, text="📦 Step 5: Export IOS Package", padding="15")
+        step5_frame.grid(row=row, column=0, sticky="we", pady=(0, 10))
+        step5_frame.columnconfigure(1, weight=1)
+        row += 1
+        
+        s5_row = 0
+        ttk.Label(step5_frame, text="Package Output Directory:").grid(row=s5_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step5_frame, textvariable=self.p6_package_dir, width=50).grid(row=s5_row, column=1, sticky="we", padx=5)
+        ttk.Button(step5_frame, text="Browse...", command=lambda: self.p6_package_dir.set(
+            filedialog.askdirectory(title="Select Package Output Directory")
+        )).grid(row=s5_row, column=2, padx=5)
+        s5_row += 1
+        
+        ttk.Label(step5_frame, text="Case Name:").grid(row=s5_row, column=0, sticky=tk.W, pady=5, padx=5)
+        ttk.Entry(step5_frame, textvariable=self.p6_case_name, width=30).grid(row=s5_row, column=1, sticky=tk.W, padx=5)
+        ttk.Button(step5_frame, text="Export Package", command=self.p6_export_package, style='Accent.TButton').grid(row=s5_row, column=2, padx=5)
+        s5_row += 1
+        
+        # Status/Log
+        status_frame = ttk.LabelFrame(main_frame, text="Status Log", padding="10")
+        status_frame.grid(row=row, column=0, sticky="nsew", pady=(0, 10))
+        status_frame.columnconfigure(0, weight=1)
+        status_frame.rowconfigure(0, weight=1)
+        main_frame.rowconfigure(row, weight=1)
+        row += 1
+        
+        self.p6_log = scrolledtext.ScrolledText(status_frame, height=10, width=80, wrap=tk.WORD)
+        self.p6_log.grid(row=0, column=0, sticky="nsew")
+        
+    def p6_log_text(self, text):
+        """Append text to Phase 6 log."""
+        self.p6_log.insert(tk.END, text + "\n")
+        self.p6_log.see(tk.END)
+        self.root.update()
+    
+    def p6_open_mapping_editor(self):
+        """Open mapping editor dialog."""
+        # Create modal dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Scan Body to Marker ID Mapping")
+        dialog.geometry("600x500")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Instructions
+        ttk.Label(dialog, text="Scan Body to Marker ID Mapping", font=('Arial', 14, 'bold')).pack(pady=10)
+        
+        inst_frame = ttk.Frame(dialog, padding=10)
+        inst_frame.pack(fill=tk.X)
+        ttk.Label(inst_frame, text="Specify which scan body position corresponds to which AprilTag marker ID.",
+                 wraplength=550).pack()
+        ttk.Label(inst_frame, text="This prevents mismatches when IOS scan body order differs from marker order.",
+                 wraplength=550, foreground='gray', font=('Arial', 9)).pack()
+        
+        # Mapping table
+        table_frame = ttk.LabelFrame(dialog, text="Mapping Configuration", padding=10)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Get marker IDs
+        marker_ids_str = self.p6_marker_ids.get().strip()
+        if marker_ids_str:
+            marker_ids = [int(x.strip()) for x in marker_ids_str.split(',')]
+        else:
+            marker_ids = [100, 101, 102, 103]
+
+        marker_ids_choices = [str(m) for m in marker_ids]
+        
+        # Create mapping inputs
+        mapping_entries = {}
+        tooth_entries = {}
+        
+        ttk.Label(table_frame, text="Scan Body", font=('Arial', 10, 'bold')).grid(row=0, column=0, padx=10, pady=5)
+        ttk.Label(table_frame, text="Marker ID", font=('Arial', 10, 'bold')).grid(row=0, column=1, padx=10, pady=5)
+        ttk.Label(table_frame, text="Tooth # (optional)", font=('Arial', 10, 'bold')).grid(row=0, column=2, padx=10, pady=5)
+        ttk.Label(table_frame, text="Position", font=('Arial', 10, 'bold')).grid(row=0, column=3, padx=10, pady=5)
+        
+        positions = ["Leftmost", "Second", "Third", "Rightmost"]
+        
+        for idx, marker_id in enumerate(marker_ids, start=1):
+            sb_name = f"SB{idx}"
+            
+            # Scan body label
+            ttk.Label(table_frame, text=sb_name, font=('Arial', 10)).grid(row=idx, column=0, padx=10, pady=5)
+            
+            # Marker ID combobox
+            marker_var = tk.StringVar(value=str(marker_id))
+            marker_combo = ttk.Combobox(table_frame, textvariable=marker_var, values=marker_ids_choices, 
+                                       width=10, state='readonly')
+            marker_combo.grid(row=idx, column=1, padx=10, pady=5)
+            mapping_entries[sb_name] = marker_var
+            
+            # Restore previous mapping if exists
+            if sb_name in self.p6_sb_marker_map:
+                marker_var.set(str(self.p6_sb_marker_map[sb_name]))
+            
+            # Tooth number entry
+            tooth_var = tk.StringVar()
+            tooth_entry = ttk.Entry(table_frame, textvariable=tooth_var, width=10)
+            tooth_entry.grid(row=idx, column=2, padx=10, pady=5)
+            tooth_entries[sb_name] = tooth_var
+            
+            # Restore previous tooth number if exists
+            if marker_id in self.p6_tooth_positions:
+                tooth_var.set(self.p6_tooth_positions[marker_id])
+            
+            # Position indicator
+            if idx <= len(positions):
+                ttk.Label(table_frame, text=positions[idx-1], foreground='gray', 
+                         font=('Arial', 9)).grid(row=idx, column=3, padx=10, pady=5)
+        
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def save_mapping():
+            # Save mapping
+            self.p6_sb_marker_map.clear()
+            self.p6_tooth_positions.clear()
+            
+            for sb_name, marker_var in mapping_entries.items():
+                marker_id = int(marker_var.get())
+                self.p6_sb_marker_map[sb_name] = marker_id
+                
+                # Save tooth number if provided
+                tooth_num = tooth_entries[sb_name].get().strip()
+                if tooth_num:
+                    self.p6_tooth_positions[marker_id] = tooth_num
+            
+            # Update marker IDs string to match mapping order
+            ordered_markers = [self.p6_sb_marker_map.get(f"SB{i+1}", marker_ids[i]) 
+                             for i in range(len(marker_ids))]
+            self.p6_marker_ids.set(','.join(map(str, ordered_markers)))
+            
+            self.p6_log_text("✓ Mapping saved:")
+            for sb, marker in self.p6_sb_marker_map.items():
+                tooth_info = f" (Tooth #{self.p6_tooth_positions[marker]})" if marker in self.p6_tooth_positions else ""
+                self.p6_log_text(f"  {sb} → Marker {marker}{tooth_info}")
+            
+            dialog.destroy()
+        
+        def auto_detect():
+            # Auto-detect from file if loaded
+            messagebox.showinfo("Auto-Detect", 
+                              "Auto-detect will analyze IOS file and photogrammetry data to suggest mapping.\n\n"
+                              "This feature requires both files to be loaded first.")
+        
+        ttk.Button(button_frame, text="Save Mapping", command=save_mapping, style='Accent.TButton').pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Auto-Detect", command=auto_detect).pack(side=tk.LEFT, padx=5)
+    
+    def p6_create_refpoints_u(self):
+        """Create refpoints_U.json from structure_L.json."""
+        # Ask for structure_L.json
+        structure_file = filedialog.askopenfilename(
+            title="Select structure_L.json",
+            filetypes=[("JSON", "*.json"), ("All Files", "*.*")]
+        )
+        
+        if not structure_file:
+            return
+        
+        # Ask for output location
+        output_file = filedialog.asksaveasfilename(
+            title="Save refpoints_U.json",
+            defaultextension=".json",
+            initialfile="refpoints_U.json",
+            filetypes=[("JSON", "*.json"), ("All Files", "*.*")]
+        )
+        
+        if not output_file:
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Creating refpoints_U.json from structure_L.json...")
+        
+        try:
+            import json
+            
+            # Load structure_L.json
+            with open(structure_file, 'r') as f:
+                structure = json.load(f)
+            
+            if 'points_3d' not in structure:
+                raise ValueError("structure_L.json missing 'points_3d' field")
+            
+            # Convert to refpoints format
+            refpoints = {
+                "frame": "U",
+                "units": "mm",
+                "points": {}
+            }
+            
+            for track_id, point_data in structure['points_3d'].items():
+                # structure_L.json uses 'xyz' field for 3D coordinates
+                if 'xyz' in point_data:
+                    refpoints["points"][track_id] = point_data['xyz']
+                elif 'position_mm' in point_data:
+                    refpoints["points"][track_id] = point_data['position_mm']
+                else:
+                    raise ValueError(f"Point {track_id} missing coordinate data ('xyz' or 'position_mm')")
+            
+            # Add metadata
+            refpoints["metadata"] = {
+                "timestamp": datetime.now().isoformat() + "Z",
+                "source": "structure_L.json conversion",
+                "n_points": len(refpoints["points"])
+            }
+            
+            # Save
+            with open(output_file, 'w') as f:
+                json.dump(refpoints, f, indent=2)
+            
+            # Update GUI
+            self.p6_refpoints.set(output_file)
+            
+            self.p6_log_text(f"✓ Success: Created {output_file}")
+            self.p6_log_text(f"  Converted {len(refpoints['points'])} points")
+            messagebox.showinfo("Success", f"Created refpoints_U.json with {len(refpoints['points'])} points")
+            
+        except Exception as e:
+            self.p6_log_text(f"✗ Error: {e}")
+            messagebox.showerror("Error", str(e))
+    
+    def p6_extract_implants(self):
+        """Extract implants from refpoints_U.json."""
+        if not self.p6_refpoints.get() or not self.p6_implants_u.get():
+            messagebox.showerror("Error", "Please specify input and output files.")
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Extracting implants from photogrammetry...")
+        
+        def run():
+            try:
+                import sys
+                sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+                from implant_extractor import extract_implants_from_refpoints
+                
+                extract_implants_from_refpoints(
+                    self.p6_refpoints.get(),
+                    self.p6_implants_u.get(),
+                    self.p6_tag_size.get()
+                )
+                
+                self.p6_log_text(f"✓ Success: Saved to {self.p6_implants_u.get()}")
+                messagebox.showinfo("Success", "Implants extracted successfully!")
+            except Exception as e:
+                self.p6_log_text(f"✗ Error: {e}")
+                messagebox.showerror("Error", str(e))
+        
+        threading.Thread(target=run, daemon=True).start()
+    
+    def p6_convert_ios(self):
+        """Convert IOS scan body data to implants_I.json."""
+        if not self.p6_ios_file.get() or not self.p6_implants_i.get():
+            messagebox.showerror("Error", "Please specify input and output files.")
+            return
+
+        ios_path = self.p6_ios_file.get().strip()
+        ios_ext = Path(ios_path).suffix.lower()
+
+        marker_ids_str = self.p6_marker_ids.get().strip()
+        # Marker IDs are optional for CSVs that already include tag IDs.
+        # For JSON scanbody transforms we still require marker IDs.
+        if ios_ext != '.csv' and not marker_ids_str:
+            messagebox.showerror(
+                "Error",
+                "Please specify marker IDs (comma-separated).\n\n"
+                "Tip: If you are using a CSV with tag IDs as the first/last column, marker IDs can be left blank."
+            )
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Converting IOS scan body data...")
+        
+        def run():
+            try:
+                import subprocess
+
+                marker_ids = [x.strip() for x in marker_ids_str.split(',') if x.strip()] if marker_ids_str else []
+
+                tools_dir = Path(__file__).parent
+
+                if ios_ext == '.csv':
+                    script = tools_dir / "convert_ios_centers.py"
+                    cmd = [
+                        sys.executable,
+                        "-X", "utf8",
+                        str(script),
+                        "--input", ios_path,
+                        "--output", self.p6_implants_i.get(),
+                    ]
+                    if marker_ids:
+                        cmd += ["--marker-ids", *marker_ids]
+                else:
+                    script = tools_dir / "convert_ios_scanbody.py"
+                    cmd = [
+                        sys.executable,
+                        "-X", "utf8",
+                        str(script),
+                        "--input", ios_path,
+                        "--output", self.p6_implants_i.get(),
+                        "--marker-ids", *marker_ids,
+                        "--include-identity"
+                    ]
+
+                result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                
+                if result.returncode == 0:
+                    self.p6_log_text(result.stdout)
+                    self.p6_log_text(f"✓ Success: Saved to {self.p6_implants_i.get()}")
+                    messagebox.showinfo("Success", "IOS data converted successfully!")
+                else:
+                    self.p6_log_text(result.stdout)
+                    self.p6_log_text(result.stderr)
+                    messagebox.showerror("Error", "Conversion failed. See log for details.")
+            except Exception as e:
+                self.p6_log_text(f"✗ Error: {e}")
+                messagebox.showerror("Error", str(e))
+        
+        threading.Thread(target=run, daemon=True).start()
+    
+    def p6_compute_alignment(self):
+        """Compute T_I_from_U alignment."""
+        # Auto-fill common defaults to reduce friction
+        try:
+            iu = (self.p6_implants_u.get() or "").strip()
+            ii = (self.p6_implants_i.get() or "").strip()
+            tf = (self.p6_transform_file.get() or "").strip()
+
+            # Infer implants_U.json from refpoints_U.json folder
+            if not iu:
+                rp = (self.p6_refpoints.get() or "").strip()
+                if rp and Path(rp).exists():
+                    cand = Path(rp).parent / "implants_U.json"
+                    if cand.exists():
+                        self.p6_implants_u.set(str(cand))
+                        iu = str(cand)
+
+            # Infer implants_I.json from IOS input folder
+            if not ii:
+                ios_in = (self.p6_ios_file.get() or "").strip()
+                if ios_in and Path(ios_in).exists():
+                    cand = Path(ios_in).parent / "implants_I.json"
+                    if cand.exists():
+                        self.p6_implants_i.set(str(cand))
+                        ii = str(cand)
+
+            # Infer output transform path from implants_I folder
+            if not tf and ii:
+                cand = Path(ii).parent / "T_I_from_U.json"
+                self.p6_transform_file.set(str(cand))
+                tf = str(cand)
+        except Exception:
+            # If inference fails, fall back to explicit validation below
+            pass
+
+        missing = []
+        if not (self.p6_implants_u.get() or "").strip():
+            missing.append("implants_U.json (U-frame)")
+        if not (self.p6_implants_i.get() or "").strip():
+            missing.append("implants_I.json (IOS I-frame)")
+        if not (self.p6_transform_file.get() or "").strip():
+            missing.append("output T_I_from_U.json")
+
+        if missing:
+            messagebox.showerror(
+                "Error",
+                "Missing required inputs:\n\n- " + "\n- ".join(missing) + "\n\n"
+                "Tip: Run Step 1 + Step 2 first, or browse to existing JSON files."
+            )
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Computing alignment...")
+        
+        def run():
+            try:
+                import subprocess
+                
+                cmd = [
+                    sys.executable,
+                    "-X", "utf8",
+                    str(Path(__file__).parent / "solve_T_I_from_U.py"),
+                    "--implants-u", self.p6_implants_u.get(),
+                    "--implants-i", self.p6_implants_i.get(),
+                    "--output", self.p6_transform_file.get(),
+                    "--rmse-threshold", str(self.p6_rmse_threshold.get()),
+                    "--export-transformed"
+                ]
+                
+                # Add scale flag if enabled
+                if self.p6_allow_scale.get():
+                    cmd.append("--allow-scaling")
+                    self.p6_log_text("Scale estimation enabled (Sim3 transform)")
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                
+                self.p6_log_text(result.stdout)
+                
+                if result.returncode == 0:
+                    self.p6_log_text(f"✓ Success: Transform saved to {self.p6_transform_file.get()}")
+                    messagebox.showinfo("Success", "Alignment computed successfully!")
+                else:
+                    self.p6_log_text("⚠ Warning: RMSE exceeded threshold. Check alignment quality.")
+                    if self.p6_allow_scale.get():
+                        messagebox.showwarning("Warning", "Alignment completed but RMSE exceeds threshold even with scale estimation. Review the log.")
+                    else:
+                        response = messagebox.askyesno("Scale Mismatch?", 
+                                                      "RMSE exceeds threshold. This may indicate a scale mismatch between IOS and photogrammetry.\n\n"
+                                                      "Enable 'Allow scale estimation' and try again?")
+                        if response:
+                            self.p6_allow_scale.set(True)
+            except Exception as e:
+                self.p6_log_text(f"✗ Error: {e}")
+                messagebox.showerror("Error", str(e))
+        
+        threading.Thread(target=run, daemon=True).start()
+    
+    def p6_generate_constellations(self):
+        """Generate both U and I constellation STLs."""
+        if not self.p6_implants_u.get() or not self.p6_implants_i.get():
+            messagebox.showerror("Error", "Please specify implants_U and implants_I files.")
+            return
+        
+        if not self.p6_constellation_u.get() or not self.p6_constellation_i.get():
+            messagebox.showerror("Error", "Please specify output STL files.")
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Generating constellation STLs...")
+        
+        def run():
+            try:
+                import subprocess
+
+                def _auto_detect_scanbody_stl() -> str | None:
+                    """Try to locate a scanbody STL in the same case directory as inputs/outputs."""
+                    candidates = []
+                    for raw in [
+                        self.p6_ios_file.get(),
+                        self.p6_implants_i.get(),
+                        self.p6_implants_u.get(),
+                        self.p6_transform_file.get(),
+                        self.p6_constellation_i.get(),
+                        self.p6_constellation_u.get(),
+                    ]:
+                        if not raw:
+                            continue
+                        try:
+                            p = Path(raw).expanduser()
+                            d = p if p.is_dir() else p.parent
+                            if d and d.exists():
+                                candidates.append(d)
+                        except Exception:
+                            continue
+
+                    seen = set()
+                    unique_dirs = []
+                    for d in candidates:
+                        key = str(d).lower()
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        unique_dirs.append(d)
+
+                    preferred_names = [
+                        "scanbody.stl",
+                        "scan_body.stl",
+                        "scanbody_template.stl",
+                        "scanbody-library.stl",
+                        "scanbody_library.stl",
+                    ]
+
+                    for d in unique_dirs:
+                        for name in preferred_names:
+                            p = d / name
+                            if p.exists():
+                                return str(p)
+                        for p in sorted(d.glob("*scanbody*.stl")):
+                            if p.exists():
+                                return str(p)
+                    return None
+
+                scanbody_stl_path = self.p6_scanbody_stl.get().strip()
+                if self.p6_use_scanbody_stl.get():
+                    if scanbody_stl_path:
+                        try:
+                            sb = Path(scanbody_stl_path).expanduser()
+                            if not sb.is_absolute():
+                                sb = (Path.cwd() / sb).resolve()
+                            scanbody_stl_path = str(sb)
+                        except Exception:
+                            pass
+
+                    if not scanbody_stl_path or not Path(scanbody_stl_path).exists():
+                        detected = _auto_detect_scanbody_stl()
+                        if detected:
+                            scanbody_stl_path = detected
+                            self.p6_scanbody_stl.set(detected)
+                            self.p6_log_text(f"Auto-detected scanbody STL: {detected}")
+                        else:
+                            raise Exception(
+                                "Scanbody STL mode enabled but no scanbody STL found. "
+                                "Place 'scanbody.stl' in your case directory (same folder as implants/IOS files) "
+                                "or click Browse to select it."
+                            )
+                
+                # Generate U constellation
+                self.p6_log_text("Generating U-frame constellation...")
+                cmd_u = [
+                    sys.executable,
+                    "-X", "utf8",
+                    str(Path(__file__).parent / "generate_constellation.py"),
+                    "--implants", self.p6_implants_u.get(),
+                    "--output", self.p6_constellation_u.get()
+                ]
+
+                if self.p6_use_scanbody_stl.get() and scanbody_stl_path:
+                    axis = (self.p6_scanbody_axis.get() or "").strip() or "z"
+                    recenter = (self.p6_scanbody_recenter.get() or "").strip() or "none"
+                    cmd_u += [
+                        "--scanbody-stl", scanbody_stl_path,
+                        "--scanbody-scale", str(self.p6_scanbody_scale.get()),
+                        "--scanbody-recenter", recenter,
+                    ]
+
+                    # If axis begins with '-', argparse can misinterpret it as another flag.
+                    if axis.startswith("-"):
+                        cmd_u.append(f"--scanbody-axis={axis}")
+                    else:
+                        cmd_u += ["--scanbody-axis", axis]
+                
+                result_u = subprocess.run(cmd_u, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                self.p6_log_text(result_u.stdout)
+                
+                if result_u.returncode != 0:
+                    raise Exception(f"U constellation failed: {result_u.stderr}")
+                
+                # Generate I constellation
+                self.p6_log_text("Generating I-frame constellation...")
+                cmd_i = [
+                    sys.executable,
+                    "-X", "utf8",
+                    str(Path(__file__).parent / "generate_constellation.py"),
+                    "--implants", self.p6_implants_i.get(),
+                    "--output", self.p6_constellation_i.get()
+                ]
+
+                if self.p6_use_scanbody_stl.get() and scanbody_stl_path:
+                    axis = (self.p6_scanbody_axis.get() or "").strip() or "z"
+                    recenter = (self.p6_scanbody_recenter.get() or "").strip() or "none"
+                    cmd_i += [
+                        "--scanbody-stl", scanbody_stl_path,
+                        "--scanbody-scale", str(self.p6_scanbody_scale.get()),
+                        "--scanbody-recenter", recenter,
+                    ]
+
+                    if axis.startswith("-"):
+                        cmd_i.append(f"--scanbody-axis={axis}")
+                    else:
+                        cmd_i += ["--scanbody-axis", axis]
+                
+                result_i = subprocess.run(cmd_i, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                self.p6_log_text(result_i.stdout)
+                
+                if result_i.returncode != 0:
+                    raise Exception(f"I constellation failed: {result_i.stderr}")
+                
+                self.p6_log_text("✓ Success: Both constellations generated!")
+                messagebox.showinfo("Success", "Constellation STLs generated successfully!")
+            except Exception as e:
+                self.p6_log_text(f"✗ Error: {e}")
+                messagebox.showerror("Error", str(e))
+        
+        threading.Thread(target=run, daemon=True).start()
+    
+    def p6_export_package(self):
+        """Export complete IOS package."""
+        if not self.p6_package_dir.get():
+            messagebox.showerror("Error", "Please specify output directory.")
+            return
+        
+        # Check if transform file exists
+        if not self.p6_transform_file.get() or not Path(self.p6_transform_file.get()).exists():
+            messagebox.showerror("Error", "Please compute alignment first (Step 3).")
+            return
+        
+        self.p6_log_text("="*70)
+        self.p6_log_text("Exporting IOS package...")
+        
+        def run():
+            try:
+                import subprocess
+                
+                # Determine run directory from transform file
+                run_dir = Path(self.p6_transform_file.get()).parent
+                
+                cmd = [
+                    sys.executable,
+                    str(Path(__file__).parent / "export_ios_package.py"),
+                    "--run-dir", str(run_dir),
+                    "--output", self.p6_package_dir.get(),
+                    "--case-name", self.p6_case_name.get()
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                self.p6_log_text(result.stdout)
+                
+                if result.returncode == 0:
+                    self.p6_log_text(f"✓ Success: Package exported to {self.p6_package_dir.get()}")
+                    messagebox.showinfo("Success", f"IOS package exported successfully!\n\nLocation: {self.p6_package_dir.get()}")
+                else:
+                    self.p6_log_text(result.stderr)
+                    messagebox.showerror("Error", "Package export failed. See log for details.")
+            except Exception as e:
+                self.p6_log_text(f"✗ Error: {e}")
+                messagebox.showerror("Error", str(e))
+        
+        threading.Thread(target=run, daemon=True).start()
 
 
 class LogRedirector:

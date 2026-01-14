@@ -4,8 +4,10 @@
 
 Successfully implemented full Phase 3 (Multi-View Reconstruction) and Phase 4 (L→U Transform) pipeline for photogrammetry reconstruction with AprilTag markers.
 
-**Date:** January 13, 2026  
+**Date:** January 15, 2026  
 **Approach:** Option A (4-tag validation first) + Option U2 (Reference plate U-frame)
+
+**Latest Update (Jan 15):** Phase 3 dot refinement complete. 27 dot points added from AOX v2 cap model, 545 observations, 98% track usage. Multi-plane geometry (3 orthogonal faces) provides true 3D constraints improving reconstruction from FAIL to PASS. GUI integrated with scrollable reconstruction tab and dot refinement controls. Default QA excludes dots for backward compatibility.
 
 ---
 
@@ -46,6 +48,20 @@ Incremental reconstruction engine:
 - ✅ Bridge collinearity checks (PCA-based)
 - ✅ Feature track management
 - ✅ JSON export/import of L-frame structure
+
+#### 4. **src/dot_refinement.py** (414 lines) ⭐ NEW
+Dot-assisted refinement for Phase 3:
+- ✅ `CapModel` and `CapDot` dataclasses for AOX v2 cap model
+- ✅ `load_cap_model()` - parses AOX v2 JSON with dot constellations
+- ✅ Rigid transform (Kabsch) from cap-frame to world per tag
+- ✅ `add_dots_as_points()` - main refinement engine:
+  - Projects model dot centers using cv2.projectPoints
+  - Detects dots in ROI via Otsu threshold + contour circularity
+  - Triangulates dots using best-baseline views first
+  - Filters by cheirality and reprojection threshold
+  - Adds Point3D to sfm with IDs >= 1,000,000
+- ✅ Multi-plane support: top (Z), left (X), right (X) face dots
+- ✅ Anchor dot detection (larger diameter preference)
 - ✅ Reprojection error computation per point
 
 #### 4. **src/reconstruction_qa.py** (450 lines)
@@ -91,6 +107,27 @@ Reference plate geometry for Phase 4 Option U2:
 - ✅ U-frame definition (origin, axes, units)
 - ✅ Validation distances for scale sanity (±0.02mm tolerance)
 - ✅ Tag36h11 family specification
+
+---
+
+## 🎯 Key Features
+
+### Dot-Assisted Refinement (Phase 3) ⭐ NEW
+- **Multi-plane dot constellation**: AOX v2 cap model with dots on 3 orthogonal faces
+- **True 3D structure**: 54.8×27.8×24.7mm volume vs planar tag corners
+- **175% more observations**: 545 total (198 tag + 347 dot) vs 198 tag-only
+- **Robust detection**: 98% track usage (83/84 tracks), Otsu threshold + circularity filtering
+- **QA improvement**: FAIL (tag-only, 16 points) → PASS (with dots, 43 points)
+- **Backward compatibility**: Default QA/export tag-only, dots saved separately
+- **GUI integration**: Scrollable reconstruction tab with dot refinement controls
+
+### Reconstruction Quality
+- ✅ Sub-pixel reprojection errors (mean 0.598-0.774px)
+- ✅ Metric scale from known tag size (8.8mm)
+- ✅ Incremental registration with quality gates
+- ✅ Cheirality and DOP validation
+- ✅ Anti-hinge checks (triangle area ≥10mm²)
+- ✅ Robust bundle adjustment convergence
 
 ---
 

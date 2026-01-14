@@ -1,0 +1,73 @@
+{
+  "frame": "I",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        31.514809870664326,
+        -1.000534478166308,
+        -14.277653864385693
+      ],
+      "axis_vector": [
+        0.020839790644364278,
+        -0.040430005648948206,
+        -0.9989650232961739
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.49,
+      "source_frame": "U"
+    },
+    "2": {
+      "centroid_mm": [
+        -42.41263821756331,
+        39.88373995891593,
+        -17.47454656132681
+      ],
+      "axis_vector": [
+        0.020839790644364278,
+        -0.040430005648948206,
+        -0.9989650232961739
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.5225,
+      "source_frame": "U"
+    },
+    "3": {
+      "centroid_mm": [
+        20.993340966533697,
+        -19.982675154867238,
+        -13.728903074547127
+      ],
+      "axis_vector": [
+        0.020839790644364278,
+        -0.040430005648948206,
+        -0.9989650232961739
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.5475,
+      "source_frame": "U"
+    },
+    "4": {
+      "centroid_mm": [
+        -10.095512619634729,
+        -23.900530325882375,
+        -14.218896499740369
+      ],
+      "axis_vector": [
+        0.020839790644364278,
+        -0.040430005648948206,
+        -0.9989650232961739
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.5725,
+      "source_frame": "U"
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T21:59:38.495290",
+    "source": "photogrammetry_transformed",
+    "n_implants": 4,
+    "transform_applied": "T_I_from_U",
+    "original_source": "D:\\calib2\\test\\fixtures\\phase6_test\\implants_U_output.json"
+  }
+}

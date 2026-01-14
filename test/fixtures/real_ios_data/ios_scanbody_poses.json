@@ -1,0 +1,72 @@
+{
+  "case_id": "CASE_UNKNOWN",
+  "units": "mm",
+  "frame": "IOS_WORLD",
+  "transform_meaning": "T_world_from_scanbody (scanbody-local -> IOS/world)",
+  "implants": [
+    {
+      "name": "SB01",
+      "T_world_from_scanbody": [
+        [0.263330996037, 0.964084625244, 0.034606188536, -19.642454147339],
+        [-0.964705348015, 0.263142079115, 0.009987235069, 1.418838262558],
+        [0.000522194430, -0.036014728248, 0.999351084232, 1.011426925659],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "fit": {
+        "rms_mm": null,
+        "mean_mm": null,
+        "max_mm": null,
+        "n_samples": null,
+        "note": "Fill from CloudCompare distance stats if needed"
+      }
+    },
+    {
+      "name": "SB02",
+      "T_world_from_scanbody": [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "fit": {
+        "rms_mm": null,
+        "mean_mm": null,
+        "max_mm": null,
+        "n_samples": null,
+        "note": "Identity matrix usually means not aligned / not solved—confirm"
+      }
+    },
+    {
+      "name": "SB03",
+      "T_world_from_scanbody": [
+        [0.664975345135, -0.745956838131, 0.036826215684, 9.750733375549],
+        [0.746400833130, 0.665492177010, 0.002452475484, 10.152088165283],
+        [-0.026336997747, 0.025856280699, 0.999318659306, 1.099901318550],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "fit": {
+        "rms_mm": null,
+        "mean_mm": null,
+        "max_mm": null,
+        "n_samples": null,
+        "note": "Fill from CloudCompare distance stats if needed"
+      }
+    },
+    {
+      "name": "SB04",
+      "T_world_from_scanbody": [
+        [0.568537414074, -0.814885795116, 0.112811028957, 19.398866653442],
+        [0.820559978485, 0.571516633034, -0.007076554000, 20.930347442627],
+        [-0.058706797659, 0.096591502428, 0.993591248989, 0.626712381840],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "fit": {
+        "rms_mm": null,
+        "mean_mm": null,
+        "max_mm": null,
+        "n_samples": null,
+        "note": "Fill from CloudCompare distance stats if needed"
+      }
+    }
+  ]
+}

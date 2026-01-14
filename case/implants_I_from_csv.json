@@ -1,0 +1,66 @@
+{
+  "frame": "I",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        -4.33667421,
+        0.79875624,
+        1.24359727
+      ],
+      "axis_vector": [
+        0,
+        0,
+        1
+      ],
+      "marker_id": 100,
+      "scanbody_name": "SB01",
+      "fit_rms_mm": null
+    },
+    "2": {
+      "centroid_mm": [
+        -6.56853819,
+        9.95792198,
+        1.61007071
+      ],
+      "axis_vector": [
+        0,
+        0,
+        1
+      ],
+      "marker_id": 101,
+      "scanbody_name": "SB02",
+      "fit_rms_mm": null
+    },
+    "3": {
+      "centroid_mm": [
+        -16.35935974,
+        4.30547619,
+        -0.39979088
+      ],
+      "axis_vector": [
+        0,
+        0,
+        1
+      ],
+      "marker_id": 102,
+      "scanbody_name": "SB03",
+      "fit_rms_mm": null
+    },
+    "4": {
+      "centroid_mm": [
+        -19.75767136,
+        18.32509995,
+        0.45158446
+      ],
+      "axis_vector": [
+        0,
+        0,
+        1
+      ],
+      "marker_id": 103,
+      "scanbody_name": "SB04",
+      "fit_rms_mm": null
+    }
+  }
+}

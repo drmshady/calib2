@@ -1,0 +1,55 @@
+{
+  "transform": "T_I_from_U",
+  "description": "SE(3) transformation from photogrammetry U-frame to IOS I-frame",
+  "R": [
+    [
+      -0.046064344936986135,
+      -0.6183472843282692,
+      -0.7845538299501067
+    ],
+    [
+      0.9544956890270155,
+      0.20441148578607665,
+      -0.2171495431898766
+    ],
+    [
+      0.29464564438384255,
+      -0.7588560999574182,
+      0.5807937360225633
+    ]
+  ],
+  "t": [
+    [
+      -14.749911037390062
+    ],
+    [
+      11.427853727537288
+    ],
+    [
+      0.32209712290950154
+    ]
+  ],
+  "metadata": {
+    "timestamp": "2026-01-14T22:47:35.383409",
+    "n_correspondences": 4,
+    "matched_marker_ids": [
+      100,
+      101,
+      102,
+      103
+    ],
+    "rmse_mm": 5.4487649076340485,
+    "max_residual_mm": 8.524461031201426,
+    "rmse_threshold_mm": 10.0,
+    "allow_scaling": true,
+    "per_implant_residuals_mm": {
+      "1": 8.524461031201426,
+      "2": 2.880044460496836,
+      "3": 3.7263265590225014,
+      "4": 4.88973971528858
+    },
+    "source_u": "D:\\calib2\\runs\\test2_multitag_full\\implants_U.json",
+    "source_i": "D:\\calib2\\case\\implants_I.json"
+  },
+  "s": 0.2753739284269027
+}

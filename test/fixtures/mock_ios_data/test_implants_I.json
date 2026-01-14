@@ -1,0 +1,38 @@
+{
+  "frame": "I",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [10.0, 5.0, -15.0],
+      "axis_vector": [0.0, 0.0, 1.0],
+      "marker_id": 100,
+      "quality_score": 0.95
+    },
+    "2": {
+      "centroid_mm": [-10.0, 8.0, -15.5],
+      "axis_vector": [0.05, 0.0, 0.998],
+      "marker_id": 101,
+      "quality_score": 0.92
+    },
+    "3": {
+      "centroid_mm": [25.0, -10.0, -14.0],
+      "axis_vector": [-0.03, 0.02, 0.999],
+      "marker_id": 102,
+      "quality_score": 0.97
+    },
+    "4": {
+      "centroid_mm": [-25.0, -8.0, -15.2],
+      "axis_vector": [0.02, -0.01, 0.999],
+      "marker_id": 103,
+      "quality_score": 0.93
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T10:00:00Z",
+    "source": "exocad_scan_body_fit",
+    "n_implants": 4,
+    "ios_system": "3Shape TRIOS",
+    "scan_date": "2026-01-10",
+    "notes": "Mock test data for Phase 6 development"
+  }
+}

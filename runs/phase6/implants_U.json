@@ -1,0 +1,88 @@
+{
+  "frame": "U",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        -0.5648640678569262,
+        -5.335801832804895,
+        -6.538269019131422
+      ],
+      "axis_vector": [
+        -0.24531761040732752,
+        -0.8852723265520734,
+        -0.3951103363177402
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.0
+    },
+    "2": {
+      "centroid_mm": [
+        8.072964920233547,
+        -22.313301445380013,
+        -15.270589459570079
+      ],
+      "axis_vector": [
+        -0.3712004985754459,
+        -0.7746850258767679,
+        -0.5119309529024902
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.0
+    },
+    "3": {
+      "centroid_mm": [
+        -19.530375596196517,
+        -4.347873573019688,
+        -1.530628318349084
+      ],
+      "axis_vector": [
+        -0.012960043494915042,
+        -0.9312582459721328,
+        -0.36412925806850027
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.0
+    },
+    "4": {
+      "centroid_mm": [
+        -36.20991612528405,
+        -22.803057190377167,
+        -13.90684279734384
+      ],
+      "axis_vector": [
+        0.08276444684720473,
+        0.29049523638413055,
+        -0.9532903880645207
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.0
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-14T23:33:45.737222",
+    "source": "photogrammetry",
+    "n_implants": 4,
+    "mean_reprojection_error_px": 0.0,
+    "reconstruction_run": "D:\\calib2\\runs\\phase6",
+    "tag_size_mm": 8.8,
+    "validation_results": {
+      "100": {
+        "valid": false,
+        "message": "Edge length error 1.25mm exceeds 0.5mm"
+      },
+      "101": {
+        "valid": false,
+        "message": "Edge length error 1.12mm exceeds 0.5mm"
+      },
+      "102": {
+        "valid": false,
+        "message": "Edge length error 1.95mm exceeds 0.5mm"
+      },
+      "103": {
+        "valid": false,
+        "message": "Edge length error 6.14mm exceeds 0.5mm"
+      }
+    }
+  }
+}

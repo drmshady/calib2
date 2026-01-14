@@ -1,0 +1,88 @@
+{
+  "frame": "U",
+  "units": "mm",
+  "implants": {
+    "1": {
+      "centroid_mm": [
+        -0.4785284236386894,
+        -5.336770707545261,
+        -6.527765462714184
+      ],
+      "axis_vector": [
+        -0.2385899520373342,
+        -0.9031919428114853,
+        -0.35681808982622704
+      ],
+      "marker_id": 100,
+      "reprojection_error_px": 0.0
+    },
+    "2": {
+      "centroid_mm": [
+        8.145408089650854,
+        -22.65142513099999,
+        -15.733879383988496
+      ],
+      "axis_vector": [
+        -0.41125949023925357,
+        -0.7676246460935581,
+        -0.4915465739865238
+      ],
+      "marker_id": 101,
+      "reprojection_error_px": 0.0
+    },
+    "3": {
+      "centroid_mm": [
+        -19.60444268272434,
+        -4.621084962767436,
+        -2.0386714296315525
+      ],
+      "axis_vector": [
+        -0.01823621947061449,
+        -0.9378732407505241,
+        -0.3464985203193933
+      ],
+      "marker_id": 102,
+      "reprojection_error_px": 0.0
+    },
+    "4": {
+      "centroid_mm": [
+        -35.62755706274528,
+        -20.84219294948944,
+        -11.320885730963045
+      ],
+      "axis_vector": [
+        0.06686262539668668,
+        0.0488912258764318,
+        -0.9965636143053598
+      ],
+      "marker_id": 103,
+      "reprojection_error_px": 0.0
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-01-15T01:30:00.092882",
+    "source": "photogrammetry",
+    "n_implants": 4,
+    "mean_reprojection_error_px": 0.0,
+    "reconstruction_run": "D:\\calib2\\runs\\dots",
+    "tag_size_mm": 8.8,
+    "validation_results": {
+      "100": {
+        "valid": false,
+        "message": "Edge length error 1.30mm exceeds 0.5mm"
+      },
+      "101": {
+        "valid": false,
+        "message": "Edge length error 1.25mm exceeds 0.5mm"
+      },
+      "102": {
+        "valid": false,
+        "message": "Edge length error 2.14mm exceeds 0.5mm"
+      },
+      "103": {
+        "valid": false,
+        "message": "Edge length error 2.22mm exceeds 0.5mm"
+      }
+    }
+  }
+}

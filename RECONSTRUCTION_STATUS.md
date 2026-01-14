@@ -1,7 +1,44 @@
 # Phase 3/4 Reconstruction - Current Status
 
-**Date**: January 14, 2026  
-**Status**: ✅ PRODUCTION READY - All Validation Gates Passing
+**Date**: January 15, 2026  
+**Status**: ✅ PHASE 3 DOT REFINEMENT COMPLETE
+
+## ✅ Latest Progress (January 15, 2026)
+
+### Phase 3 Dot Refinement - Production Ready
+✅ **Dot-Assisted Refinement Implemented**
+- 27 dot points added from AOX v2 cap model (83 tracks, 98% success rate)
+- 545 total observations (175% increase vs tag-only)
+- Multi-plane geometry: dots on 3 orthogonal faces (top Z=5mm, left X=-5mm, right X=5mm)
+- True 3D structure: 54.8×27.8×24.7mm volume vs planar tag corners
+- Reconstruction improved: QA FAIL (tag-only) → QA PASS (with dots)
+- Mean reprojection error: 0.774px
+- Default QA excludes dots (tag-only gating) for backward compatibility
+
+### Phase 3 Unknown Layout - Production Ready
+✅ **Unknown Layout Reconstruction Complete**
+- 32/58 cameras registered with 0.598px mean reprojection
+- 16 tag corner points + 27 optional dot points
+- Metric scale from 8.8mm AprilTag size
+- Tag 100 defines world origin at (0,0,0), Z=0 plane
+- **L-frame output is the final deliverable** for unknown geometry
+
+✅ **Design Decision: Phase 4 Not Applicable for Unknown Layout**
+- **Reason**: Phase 4 requires INDEPENDENT reference measurements
+- Cannot use reconstruction to validate itself (circular logic)
+- L-frame already provides:
+  - ✅ Metric scale (mm units)
+  - ✅ Consistent coordinate system
+  - ✅ Accurate 3D positions
+  - ✅ Valid for measurements and export
+
+✅ **Phase 4 Availability**
+- Phase 4 infrastructure exists (inlined functions, no import conflicts)
+- Use only when you have:
+  - Physically measured reference plate geometry (calipers/CMM)
+  - Known layout with pre-defined tag positions
+  - IOS-based implant positions (Option U1)
+- For truly unknown layouts: Skip Phase 4, use L-frame output
 
 ## ✅ What's Working
 

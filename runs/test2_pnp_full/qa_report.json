@@ -1,0 +1,62 @@
+{
+  "overall_status": "FAIL",
+  "passed": false,
+  "hard_failures": [
+    "Reprojection Errors"
+  ],
+  "warnings": [
+    "Track Lengths"
+  ],
+  "checks": [
+    {
+      "name": "Reprojection Errors",
+      "status": "FAIL",
+      "message": "Reprojection error FAILED: mean=6933013.186px (>1.0px) or max=97051867.160px (>3.0px)",
+      "details": {
+        "mean_error_px": 6933013.185588605,
+        "max_error_px": 97051867.15992409,
+        "median_error_px": 202.0242933710923,
+        "n_points": 14,
+        "threshold_mean_px": 1.0,
+        "threshold_max_px": 3.0
+      }
+    },
+    {
+      "name": "Track Lengths",
+      "status": "WARN",
+      "message": "Track lengths WARNING: 21.4% of tracks have <4 views (mean=13.7)",
+      "details": {
+        "mean_track_length": 13.714285714285714,
+        "median_track_length": 4.0,
+        "min_track_length": 2,
+        "n_short_tracks": 3,
+        "short_track_ratio": 0.21428571428571427,
+        "threshold": 4
+      }
+    },
+    {
+      "name": "Graph Connectivity",
+      "status": "PASS",
+      "message": "Graph connectivity PASSED: single connected component (33 cameras)",
+      "details": {
+        "n_cameras": 33,
+        "n_components": 1,
+        "component_sizes": [
+          33
+        ]
+      }
+    },
+    {
+      "name": "Bridge Collinearity",
+      "status": "PASS",
+      "message": "Bridge collinearity PASSED: max_dist=88.33mm, area=38.72mm\u00b2",
+      "details": {
+        "max_perpendicular_distance_mm": 88.32504225824185,
+        "triangle_area_mm2": 38.71999999990014,
+        "threshold_distance_mm": 3.0,
+        "threshold_area_mm2": 5.0,
+        "n_points_checked": 14
+      }
+    }
+  ]
+}

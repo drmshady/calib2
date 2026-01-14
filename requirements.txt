@@ -3,3 +3,5 @@ scipy>=1.10.0
 opencv-contrib-python>=4.8.0
 matplotlib>=3.7.0
 networkx>=3.0
+numpy-stl>=2.16.0
+trimesh>=4.0.0

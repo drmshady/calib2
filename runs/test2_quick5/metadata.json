@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-01-14T16:13:56.536045",
+  "images_total": 8,
+  "images_registered": 5,
+  "points_3d": 16,
+  "tag_size_mm": 8.8,
+  "qa_passed": false,
+  "ba_result": {
+    "success": true,
+    "message": "Both `ftol` and `xtol` termination conditions are satisfied.",
+    "initial_cost": 5230971.259156572,
+    "final_cost": 148.04366428974885,
+    "cost_reduction": 5230823.215492282,
+    "n_iterations": 54,
+    "n_cameras": 5,
+    "n_points": 16,
+    "n_observations": 49,
+    "optimality": 2591343072.1068335,
+    "status": 4,
+    "mean_error_px": 129.39334690041971,
+    "max_error_px": 596.7579814580863
+  }
+}
