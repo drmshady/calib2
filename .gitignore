@@ -42,10 +42,16 @@ htmlcov/
 *.log
 *.out
 
-# Run outputs and exports
-runs/*/images/
-runs/*/models/*.stl
-exports/*.stl
+# Run outputs and exports (keep directory structure, ignore data)
+runs/*/
+!runs/*/.gitkeep
+exports/*/
+!exports/README.md
+!exports/.gitkeep
+
+# Case-specific data directories
+case/
+!case/.gitkeep
 
 # IDE and editor files
 .vscode/
@@ -63,3 +69,12 @@ desktop.ini
 *.tmp
 *.temp
 *.bak
+
+# Test/analysis scripts (ad-hoc development)
+analyze_*.py
+find_*.py
+test_*.py
+recenter_*.py
+run_*.py
+run_*.ps1
+!test/test_*.py  # Keep unit tests in test/ directory
