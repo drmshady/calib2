@@ -55,9 +55,12 @@ class CalibrationGUI:
         self.recon_output = tk.StringVar()
         self.recon_layout = tk.StringVar()
         self.recon_tag_size = tk.DoubleVar(value=8.8)
+        self.recon_layout_mode = tk.StringVar(value="unknown")  # "known" or "unknown"
         self.recon_phase4 = tk.BooleanVar(value=False)
         self.recon_phase4_method = tk.StringVar(value="reference_plate")
         self.recon_ref_plate = tk.StringVar()
+        self.recon_save_log = tk.BooleanVar(value=True)  # Auto-save logs
+        self.recon_accumulated_log = []  # Store all log lines
         
         # Quality Gate Variables
         self.qg_reconstruction_dir = tk.StringVar()
@@ -739,15 +742,38 @@ class CalibrationGUI:
         ttk.Button(main_frame, text="Browse...", command=self.browse_recon_output).grid(row=row, column=2)
         row += 1
         
-        # Optional: Layout File
-        ttk.Label(main_frame, text="Layout File (Optional):", font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky=tk.W, pady=(15, 5))
+        # Layout Mode Selection
+        layout_mode_frame = ttk.LabelFrame(main_frame, text="Layout Mode", padding="10")
+        layout_mode_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
         row += 1
         
-        ttk.Entry(main_frame, textvariable=self.recon_layout, width=60).grid(row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=(0, 5))
-        ttk.Button(main_frame, text="Browse...", command=self.browse_recon_layout).grid(row=row, column=2)
-        row += 1
-        ttk.Label(main_frame, text="For validation with known tag positions", font=('Arial', 8)).grid(row=row, column=0, columnspan=2, sticky=tk.W)
-        row += 1
+        ttk.Radiobutton(layout_mode_frame, text="Unknown Layout (Triangulate from observations)", 
+                       variable=self.recon_layout_mode, value="unknown", 
+                       command=self.toggle_layout_mode).grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(layout_mode_frame, text="Use for production: 4+ flags without known positions", 
+                 font=('Arial', 8), foreground='gray').grid(row=1, column=0, sticky=tk.W, padx=(20, 0))
+        
+        ttk.Radiobutton(layout_mode_frame, text="Known Layout (Validation with layout file)", 
+                       variable=self.recon_layout_mode, value="known", 
+                       command=self.toggle_layout_mode).grid(row=2, column=0, sticky=tk.W, pady=(10, 5))
+        ttk.Label(layout_mode_frame, text="Use for testing/validation with known tag positions", 
+                 font=('Arial', 8), foreground='gray').grid(row=3, column=0, sticky=tk.W, padx=(20, 0))
+        
+        # Layout File (only for known mode)
+        self.layout_file_label = ttk.Label(layout_mode_frame, text="Layout File:")
+        self.layout_file_label.grid(row=4, column=0, sticky=tk.W, pady=(10, 5))
+        
+        layout_entry_frame = ttk.Frame(layout_mode_frame)
+        layout_entry_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        layout_entry_frame.columnconfigure(0, weight=1)
+        
+        self.layout_file_entry = ttk.Entry(layout_entry_frame, textvariable=self.recon_layout, width=50)
+        self.layout_file_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        self.layout_file_button = ttk.Button(layout_entry_frame, text="Browse...", command=self.browse_recon_layout)
+        self.layout_file_button.grid(row=0, column=1)
+        
+        # Initially set layout controls based on default mode
+        self.toggle_layout_mode()
         
         # Parameters Frame
         params_frame = ttk.LabelFrame(main_frame, text="Parameters", padding="10")
@@ -791,6 +817,14 @@ class CalibrationGUI:
         log_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(5, 10))
         main_frame.rowconfigure(row, weight=1)
         row += 1
+        
+        # Log controls
+        log_controls = ttk.Frame(log_frame)
+        log_controls.pack(fill=tk.X, pady=(0, 5))
+        ttk.Checkbutton(log_controls, text="Auto-save log to output directory", 
+                       variable=self.recon_save_log).pack(side=tk.LEFT, padx=5)
+        ttk.Button(log_controls, text="Save Log Now", 
+                  command=self.save_reconstruction_log).pack(side=tk.LEFT, padx=5)
         
         self.recon_log = scrolledtext.ScrolledText(log_frame, height=15, width=80, state=tk.DISABLED)
         self.recon_log.pack(fill=tk.BOTH, expand=True)
@@ -839,6 +873,17 @@ class CalibrationGUI:
         if file:
             self.recon_layout.set(file)
     
+    def toggle_layout_mode(self):
+        """Toggle layout file controls based on mode."""
+        if self.recon_layout_mode.get() == "known":
+            self.layout_file_label.config(state=tk.NORMAL)
+            self.layout_file_entry.config(state=tk.NORMAL)
+            self.layout_file_button.config(state=tk.NORMAL)
+        else:
+            self.layout_file_label.config(state=tk.DISABLED)
+            self.layout_file_entry.config(state=tk.DISABLED)
+            self.layout_file_button.config(state=tk.DISABLED)
+    
     def browse_ref_plate(self):
         """Browse for reference plate file."""
         file = filedialog.askopenfilename(
@@ -854,6 +899,7 @@ class CalibrationGUI:
         self.recon_log.insert(tk.END, text + "\n")
         self.recon_log.see(tk.END)
         self.recon_log.config(state=tk.DISABLED)
+        self.recon_accumulated_log.append(text)
         self.root.update()
     
     def run_reconstruction(self):
@@ -871,6 +917,10 @@ class CalibrationGUI:
             messagebox.showerror("Error", "Please specify output directory!")
             return
         
+        if self.recon_layout_mode.get() == "known" and not self.recon_layout.get():
+            messagebox.showerror("Error", "Please specify layout file for known layout mode!")
+            return
+        
         if self.recon_phase4.get() and self.recon_phase4_method.get() == "reference_plate" and not self.recon_ref_plate.get():
             messagebox.showerror("Error", "Please specify reference plate file for Phase 4!")
             return
@@ -884,10 +934,11 @@ class CalibrationGUI:
         self.recon_run_button.config(state=tk.DISABLED)
         self.recon_progress.start()
         
-        # Clear log
+        # Clear log and accumulated text
         self.recon_log.config(state=tk.NORMAL)
         self.recon_log.delete(1.0, tk.END)
         self.recon_log.config(state=tk.DISABLED)
+        self.recon_accumulated_log = []  # Clear accumulated log
         
         # Run in separate thread
         thread = threading.Thread(target=self._run_reconstruction_worker)
@@ -912,7 +963,6 @@ class CalibrationGUI:
                     del sys.modules['bundle_adjustment']
             
             # Import reconstruction functions
-            import phase3_test_pipeline
             from glob import glob
             
             # Redirect stdout
@@ -929,16 +979,33 @@ class CalibrationGUI:
                     return
                 
                 self.recon_log_text(f"Found {len(image_paths)} images")
+                self.recon_log_text(f"Layout mode: {self.recon_layout_mode.get().upper()}")
+                self.recon_log_text("")
                 
-                # Run Phase 3
-                sfm, phase3_metadata = phase3_test_pipeline.run_phase3_pipeline(
-                    image_paths=image_paths,
-                    calib_file=self.recon_calib.get(),
-                    output_dir=self.recon_output.get(),
-                    layout_file=self.recon_layout.get() if self.recon_layout.get() else None,
-                    tag_size_mm=self.recon_tag_size.get(),
-                    verbose=True
-                )
+                # Run Phase 3 with appropriate pipeline
+                if self.recon_layout_mode.get() == "unknown":
+                    # Unknown layout: triangulate from observations
+                    import phase3_unknown_layout_pipeline
+                    
+                    sfm, phase3_metadata = phase3_unknown_layout_pipeline.run_unknown_layout_pipeline(
+                        image_paths=image_paths,
+                        calib_file=self.recon_calib.get(),
+                        output_dir=self.recon_output.get(),
+                        tag_size_mm=self.recon_tag_size.get(),
+                        verbose=True
+                    )
+                else:
+                    # Known layout: use PnP-based pipeline
+                    import phase3_test_pipeline
+                    
+                    sfm, phase3_metadata = phase3_test_pipeline.run_phase3_pipeline(
+                        image_paths=image_paths,
+                        calib_file=self.recon_calib.get(),
+                        output_dir=self.recon_output.get(),
+                        layout_file=self.recon_layout.get(),
+                        tag_size_mm=self.recon_tag_size.get(),
+                        verbose=True
+                    )
 
                 # Always allow outlier analysis + re-opt even if QA failed.
                 if not phase3_metadata.get("qa_passed", False):
@@ -1494,11 +1561,59 @@ class CalibrationGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Export failed:\n{str(e)}")
     
+    def save_reconstruction_log(self):
+        """Manually save reconstruction log to file."""
+        if not self.recon_output.get():
+            messagebox.showerror("Error", "No output directory specified!")
+            return
+        
+        if not self.recon_accumulated_log:
+            messagebox.showwarning("Warning", "Log is empty!")
+            return
+        
+        try:
+            self._save_log_to_file()
+            messagebox.showinfo("Success", f"Log saved to:\n{Path(self.recon_output.get()) / 'reconstruction_log.txt'}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save log: {e}")
+    
+    def _save_log_to_file(self):
+        """Internal method to save accumulated log to file."""
+        from datetime import datetime
+        
+        output_dir = Path(self.recon_output.get())
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        log_file = output_dir / "reconstruction_log.txt"
+        
+        with open(log_file, 'w', encoding='utf-8') as f:
+            f.write("="*80 + "\n")
+            f.write("PHASE 3/4 RECONSTRUCTION LOG\n")
+            f.write("="*80 + "\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Output Directory: {output_dir}\n")
+            f.write(f"Layout Mode: {self.recon_layout_mode.get().upper()}\n")
+            f.write(f"Tag Size: {self.recon_tag_size.get()} mm\n")
+            f.write(f"Phase 4: {'ENABLED' if self.recon_phase4.get() else 'DISABLED'}\n")
+            f.write("="*80 + "\n\n")
+            
+            for line in self.recon_accumulated_log:
+                f.write(line + "\n")
+        
+        self.recon_log_text(f"Log saved to: {log_file}")
+    
     def finish_reconstruction(self, success):
         """Finish reconstruction and re-enable controls."""
         self.is_running = False
         self.recon_progress.stop()
         self.recon_run_button.config(state=tk.NORMAL)
+        
+        # Auto-save log if enabled
+        if self.recon_save_log.get() and self.recon_output.get():
+            try:
+                self._save_log_to_file()
+            except Exception as e:
+                self.recon_log_text(f"Warning: Could not auto-save log: {e}")
         
         if success:
             messagebox.showinfo("Success", "Reconstruction finished. Use the Quality Gate tab to review per-image errors and optionally re-optimize.")
