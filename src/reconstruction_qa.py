@@ -259,10 +259,18 @@ def check_scale_sanity(
     expected_edge_length_mm: float,
     tolerance_mm: float = 0.1
 ) -> QACheckResult:
-    """Check scale sanity via AprilTag edge lengths.
+    """Check scale sanity via AprilTag edge lengths IN L-FRAME (pre-alignment).
+    
+    INDEPENDENT VALIDATION: This measures the reconstruction's internal metric
+    scale BEFORE any Phase 4 alignment. It validates that:
+    1. All tag edges are consistent with each other (low std dev)
+    2. The mean edge length matches the expected physical size
+    
+    This is INDEPENDENT of Phase 4's U-frame alignment and provides a
+    cross-check that the reconstruction has correct absolute scale.
     
     Args:
-        sfm: IncrementalSfM reconstruction
+        sfm: IncrementalSfM reconstruction (L-frame, before alignment)
         apriltag_corners_3d: Dict of tag_id → (4, 3) corner positions
         expected_edge_length_mm: Expected edge length (e.g., 8.8mm)
         tolerance_mm: Tolerance for scale check (default 0.1mm)
@@ -272,7 +280,7 @@ def check_scale_sanity(
     """
     if not apriltag_corners_3d:
         return QACheckResult(
-            name="Scale Sanity",
+            name="Scale Sanity (L-frame)",
             status=QAStatus.WARN,
             message="No AprilTag corners provided for scale check",
             details={}
@@ -289,7 +297,7 @@ def check_scale_sanity(
     
     if not edge_lengths:
         return QACheckResult(
-            name="Scale Sanity",
+            name="Scale Sanity (L-frame)",
             status=QAStatus.WARN,
             message="No edge lengths computed",
             details={}
@@ -310,25 +318,26 @@ def check_scale_sanity(
         "expected_edge_length_mm": expected_edge_length_mm,
         "scale_error_mm": float(scale_error),
         "tolerance_mm": tolerance_mm,
-        "n_edges": len(edge_lengths)
+        "n_edges": len(edge_lengths),
+        "note": "INDEPENDENT: Measured in L-frame before Phase 4 alignment"
     }
     
     if scale_error > tolerance_mm:
         status = QAStatus.WARN
         message = (
-            f"Scale sanity WARNING: mean edge={mean_edge:.3f}mm "
+            f"Scale sanity (L-frame) WARNING: mean edge={mean_edge:.3f}mm "
             f"(expected {expected_edge_length_mm}mm ±{tolerance_mm}mm, "
-            f"error={scale_error:.3f}mm)"
+            f"error={scale_error:.3f}mm) [PRE-ALIGNMENT]"
         )
     else:
         status = QAStatus.PASS
         message = (
-            f"Scale sanity PASSED: mean edge={mean_edge:.3f}mm "
-            f"(error={scale_error:.3f}mm < {tolerance_mm}mm)"
+            f"Scale sanity (L-frame) PASSED: mean edge={mean_edge:.3f}mm "
+            f"(error={scale_error:.3f}mm < {tolerance_mm}mm) [PRE-ALIGNMENT]"
         )
     
     return QACheckResult(
-        name="Scale Sanity",
+        name="Scale Sanity (L-frame)",
         status=status,
         message=message,
         details=details
